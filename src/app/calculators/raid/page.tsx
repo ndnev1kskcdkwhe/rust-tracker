@@ -13,6 +13,7 @@ import {
   type Tier,
 } from "@/lib/calculators/raid/data";
 import { cheapestCombination, hitsNeeded } from "@/lib/calculators/raid/raid";
+import { ExplosiveIcon } from "./ExplosiveIcon";
 
 const TIER_LABELS: Record<Tier, string> = {
   twig: "Гілки (Twig)",
@@ -196,12 +197,16 @@ export default function RaidCalculatorPage() {
             </legend>
             <div className="grid grid-cols-2 gap-2 text-sm">
               {EXPLOSIVE_IDS.map((id) => (
-                <label key={id} className="flex items-center gap-2">
+                <label
+                  key={id}
+                  className="flex items-center gap-2 rounded-lg border border-transparent px-2 py-1.5 transition-colors has-[:checked]:border-black/[.08] has-[:checked]:bg-zinc-100 dark:has-[:checked]:border-white/[.145] dark:has-[:checked]:bg-zinc-900"
+                >
                   <input
                     type="checkbox"
                     checked={available.has(id)}
                     onChange={() => toggleExplosive(id)}
                   />
+                  <ExplosiveIcon id={id} />
                   {EXPLOSIVES[id].label}
                 </label>
               ))}
@@ -213,9 +218,10 @@ export default function RaidCalculatorPage() {
             {result ? (
               <>
                 <p className="mt-2 font-medium text-black dark:text-zinc-50">Найдешевша комбінація:</p>
-                <ul className="mt-1 list-disc pl-5 text-zinc-700 dark:text-zinc-300">
+                <ul className="mt-1 flex flex-col gap-1 text-zinc-700 dark:text-zinc-300">
                   {Object.entries(result.combination).map(([id, count]) => (
-                    <li key={id}>
+                    <li key={id} className="flex items-center gap-2">
+                      <ExplosiveIcon id={id as ExplosiveId} />
                       {EXPLOSIVES[id as ExplosiveId].label} × {count}
                     </li>
                   ))}
@@ -297,9 +303,10 @@ export default function RaidCalculatorPage() {
                 {Object.keys(queueTotals.totalExplosives).length === 0 ? (
                   <p className="mt-1 text-zinc-600 dark:text-zinc-400">—</p>
                 ) : (
-                  <ul className="mt-1 list-disc pl-5 text-zinc-700 dark:text-zinc-300">
+                  <ul className="mt-1 flex flex-col gap-1 text-zinc-700 dark:text-zinc-300">
                     {Object.entries(queueTotals.totalExplosives).map(([id, count]) => (
-                      <li key={id}>
+                      <li key={id} className="flex items-center gap-2">
+                        <ExplosiveIcon id={id as ExplosiveId} />
                         {EXPLOSIVES[id as ExplosiveId].label} × {count}
                       </li>
                     ))}
