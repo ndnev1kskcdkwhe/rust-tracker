@@ -364,6 +364,8 @@ export default function GeneticsScanPage() {
       neighborGenesList: result.neighborIndices.map((i) => cropGenomes[i].genes),
       chance: result.chance,
       expectedAttempts: result.expectedAttempts,
+      expectedMatches: result.expectedMatches,
+      likelyGenome: result.likelyGenome.join(""),
     };
   }, [cropGenomes]);
 
@@ -531,8 +533,13 @@ export default function GeneticsScanPage() {
                   ))}
                 </ul>
               )}
+              <p className="mt-2 text-xs text-zinc-500">Найімовірніший результат</p>
+              <p className="font-mono text-black dark:text-zinc-50">
+                {arrangement.likelyGenome}{" "}
+                <span className="text-xs text-zinc-500">({arrangement.expectedMatches.toFixed(1)}/6 співпадінь)</span>
+              </p>
               <p className="mt-2 font-medium text-black dark:text-zinc-50">
-                Шанс за одне схрещування: {(arrangement.chance * 100).toFixed(1)}%
+                Шанс отримати ідеальний {DEFAULT_TARGET_GENOME}: {(arrangement.chance * 100).toFixed(1)}%
               </p>
               {arrangement.chance > 0 && arrangement.chance < 1 && (
                 <p className="text-zinc-600 dark:text-zinc-400">
@@ -540,8 +547,11 @@ export default function GeneticsScanPage() {
                   середньому.
                 </p>
               )}
-              {arrangement.chance === 0 && (
-                <p className="text-red-600 dark:text-red-400">З наявних клонів цю ціль отримати неможливо.</p>
+              {arrangement.chance === 0 && arrangement.expectedMatches < 6 && (
+                <p className="text-zinc-600 dark:text-zinc-400">
+                  Ідеальний збіг наразі неможливий — з наявних клонів це найкраще, чого можна
+                  досягти. Дозбирай клони, ближчі до {DEFAULT_TARGET_GENOME}, щоб покращити результат.
+                </p>
               )}
             </div>
           ) : null}

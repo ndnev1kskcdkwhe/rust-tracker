@@ -147,6 +147,8 @@ export default function GeneticsCalculatorPage() {
       neighbors: result.neighborIndices.map((i) => cropGenomes[i]),
       chance: result.chance,
       expectedAttempts: result.expectedAttempts,
+      expectedMatches: result.expectedMatches,
+      likelyGenome: result.likelyGenome,
     };
   }, [cropGenomes, target]);
 
@@ -437,8 +439,20 @@ export default function GeneticsCalculatorPage() {
                   )}
                 </div>
 
-                <p className="font-medium text-black dark:text-zinc-50">
-                  Шанс за одне схрещування: {(arrangement.chance * 100).toFixed(1)}%
+                <p className="text-xs text-zinc-500">Найімовірніший результат</p>
+                <div className="mt-1 flex items-center gap-2">
+                  <div className="flex gap-1">
+                    {arrangement.likelyGenome.map((gene, i) => (
+                      <GeneBadge key={i} gene={gene} />
+                    ))}
+                  </div>
+                  <span className="text-xs text-zinc-500">
+                    ({arrangement.expectedMatches.toFixed(1)}/6 співпадінь)
+                  </span>
+                </div>
+
+                <p className="mt-2 font-medium text-black dark:text-zinc-50">
+                  Шанс отримати ідеальний {targetInput}: {(arrangement.chance * 100).toFixed(1)}%
                 </p>
                 {arrangement.chance > 0 && arrangement.chance < 1 && (
                   <p className="text-zinc-600 dark:text-zinc-400">
@@ -447,10 +461,10 @@ export default function GeneticsCalculatorPage() {
                     розстановкою (клонуй центр і повторюй, поки не вийде).
                   </p>
                 )}
-                {arrangement.chance === 0 && (
-                  <p className="text-red-600 dark:text-red-400">
-                    З наявних клонів цю ціль отримати неможливо — потрібен інший вихідний
-                    матеріал.
+                {arrangement.chance === 0 && arrangement.expectedMatches < 6 && (
+                  <p className="text-zinc-600 dark:text-zinc-400">
+                    Ідеальний збіг наразі неможливий — це найкраще, чого можна досягти з наявних
+                    клонів. Дозбирай клони, ближчі до цілі, щоб покращити результат.
                   </p>
                 )}
               </div>
