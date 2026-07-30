@@ -21,14 +21,14 @@ export default function CalculatorsPage() {
           </Link>
 
           <Link
-            href="/calculators/farming"
+            href="/calculators/genetics"
             className="rounded-2xl border border-black/[.08] bg-white p-6 transition-colors hover:bg-black/[.02] dark:border-white/[.145] dark:bg-black dark:hover:bg-white/[.04]"
           >
             <h2 className="text-lg font-medium text-black dark:text-zinc-50">
-              Калькулятор фермерства
+              Генетика рослин
             </h2>
             <p className="mt-1 text-sm text-zinc-600 dark:text-zinc-400">
-              Скільки ударів і часу потрібно, щоб назбирати потрібну кількість ресурсу.
+              Прогноз схрещування клонів і збереження власної бази геномів по культурах.
             </p>
           </Link>
         </div>

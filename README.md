@@ -50,6 +50,26 @@ npx prisma migrate dev
 npx prisma generate
 ```
 
+**Відома проблема з `npx prisma dev` (Варіант A):** цей локальний движок дзеркалить схему
+в будь-яку нову базу на тому самому інстансі (через власний WAL-механізм), тож повноцінної
+"порожньої" shadow-бази для `migrate dev` там не існує — команда може впасти з `P3018`
+(`type ... already exists`) або `P3005` (`database schema is not empty`). Обхід, якщо це
+станеться:
+
+```bash
+# 1. Згенерувати SQL діффу напряму зі схем (без підключення до shadow-бази)
+git show HEAD:prisma/schema.prisma > /tmp/schema_before.prisma
+npx prisma migrate diff --from-schema /tmp/schema_before.prisma --to-schema prisma/schema.prisma --script > prisma/migrations/<timestamp>_<name>/migration.sql
+
+# 2. Якщо БД вже має таблиці без historyю міграцій — розбаселайнити:
+npx prisma migrate resolve --applied <назва_попередньої_міграції>
+
+# 3. Застосувати нову міграцію (не потребує shadow-бази)
+npx prisma migrate deploy
+```
+
+Із власним Postgres (Варіант B) ця проблема не виникає — там `migrate dev` працює штатно.
+
 ### 5. Запустити dev-сервер
 
 ```bash
@@ -63,13 +83,24 @@ npm run dev
 
 - `User` — email, хеш пароля (bcrypt), ім'я
 - `Subscription` — рівень (`FREE`/`PRO`), статус, поля під Stripe (заповнюються у Фазі 5)
+- `PlantGenome` — збережені клони рослин (культура, 6-літерний геном, нотатка) для калькулятора генетики (Фаза 2)
 
 Схема: [prisma/schema.prisma](./prisma/schema.prisma)
+
+## Калькулятор генетики рослин і сканування з екрана
+
+`/calculators/genetics` — прогноз схрещування (формула зі rustbreeder.com / irust.ru/genetic)
++ збереження власних клонів у базу. `/calculators/genetics/scan` дозволяє захопити екран
+через Screen Capture API браузера і розпізнавати геном з підказки гри через OCR (tesseract.js).
+
+**Обов'язкова умова для сканування:** у Rust (Settings → User Interface) виставити
+**User Interface Scale = 1 (максимум)** і мову інтерфейсу — English. Розпізнавання
+калібрується під ці параметри.
 
 ## Статус фаз
 
 - [x] Фаза 1 — каркас (Next.js, Prisma, Postgres, auth)
-- [x] Фаза 2 — калькулятори (рейд, фермерство)
+- [x] Фаза 2 — калькулятори (рейд, генетика рослин зі скануванням екрана)
 - [ ] Фаза 3 — пошук гравців (Steam + BattleMetrics)
 - [ ] Фаза 4 — сервери і мапи (BattleMetrics + RustMaps)
 - [ ] Фаза 5 — підписки (Stripe)
