@@ -1,0 +1,49 @@
+// This is your Prisma schema file,
+// learn more about it in the docs: https://pris.ly/d/prisma-schema
+
+// Get a free hosted Postgres database in seconds: `npx create-db`
+
+generator client {
+  provider = "prisma-client"
+  output   = "../src/generated/prisma"
+}
+
+datasource db {
+  provider = "postgresql"
+}
+
+model User {
+  id           String        @id @default(cuid())
+  email        String        @unique
+  passwordHash String
+  name         String?
+  createdAt    DateTime      @default(now())
+  updatedAt    DateTime      @updatedAt
+  subscription Subscription?
+}
+
+enum SubscriptionTier {
+  FREE
+  PRO
+}
+
+enum SubscriptionStatus {
+  ACTIVE
+  CANCELED
+  PAST_DUE
+  INCOMPLETE
+}
+
+model Subscription {
+  id                   String              @id @default(cuid())
+  user                 User                @relation(fields: [userId], references: [id], onDelete: Cascade)
+  userId               String              @unique
+  tier                 SubscriptionTier    @default(FREE)
+  status               SubscriptionStatus  @default(ACTIVE)
+  stripeCustomerId     String?             @unique
+  stripeSubscriptionId String?             @unique
+  stripePriceId        String?
+  currentPeriodEnd     DateTime?
+  createdAt            DateTime            @default(now())
+  updatedAt            DateTime            @updatedAt
+}
