@@ -21,6 +21,7 @@ import {
   predictCross,
   type SlotOutcome,
 } from "@/lib/calculators/genetics/genetics";
+import { findBestArrangement } from "@/lib/calculators/genetics/arrangement";
 
 interface SavedGenome {
   id: string;
@@ -115,7 +116,27 @@ export default function GeneticsCalculatorPage() {
 
   const chanceOfTarget = slots && target ? chanceOfExactGenome(slots, target) : null;
 
-  const cropGenomes = isLoggedIn ? (savedGenomes ?? []).filter((g) => g.crop === crop) : [];
+  const cropGenomes = useMemo(
+    () => (isLoggedIn ? (savedGenomes ?? []).filter((g) => g.crop === crop) : []),
+    [isLoggedIn, savedGenomes, crop]
+  );
+
+  const arrangement = useMemo(() => {
+    if (!target || cropGenomes.length === 0) {
+      return null;
+    }
+    const pool = cropGenomes.map((g) => parseGenome(g.genes));
+    const result = findBestArrangement(pool, target);
+    if (!result) {
+      return null;
+    }
+    return {
+      center: cropGenomes[result.centerIndex],
+      neighbors: result.neighborIndices.map((i) => cropGenomes[i]),
+      chance: result.chance,
+      expectedAttempts: result.expectedAttempts,
+    };
+  }, [cropGenomes, target]);
 
   const handleSaveGenome = async () => {
     setSaveError(null);
@@ -339,6 +360,91 @@ export default function GeneticsCalculatorPage() {
             </>
           )}
         </div>
+
+        {/* Auto-arrangement */}
+        {isLoggedIn && (
+          <div className="mt-6 flex flex-col gap-4 rounded-2xl border border-black/[.08] bg-white p-6 dark:border-white/[.145] dark:bg-black">
+            <h2 className="text-lg font-medium text-black dark:text-zinc-50">
+              Автопідбір розстановки
+            </h2>
+            <p className="text-sm text-zinc-600 dark:text-zinc-400">
+              Перебирає збережені клони обраної культури й шукає, який з них поставити в
+              центр, а які — сусідами (до 8, з повторами), щоб максимізувати шанс отримати
+              цільовий геном за одне схрещування.
+            </p>
+
+            {cropGenomes.length === 0 ? (
+              <p className="text-sm text-zinc-500 dark:text-zinc-500">
+                Потрібен хоча б один збережений клон цієї культури.
+              </p>
+            ) : !target ? (
+              <p className="text-sm text-red-600 dark:text-red-400">
+                Введи коректний цільовий геном вище.
+              </p>
+            ) : arrangement ? (
+              <div className="flex flex-col gap-3 rounded-xl bg-zinc-100 p-4 text-sm dark:bg-zinc-900">
+                <div>
+                  <p className="text-xs text-zinc-500">Центр</p>
+                  <div className="mt-1 flex items-center gap-2">
+                    <div className="flex gap-1">
+                      {parseGenome(arrangement.center.genes).map((gene, i) => (
+                        <GeneBadge key={i} gene={gene} />
+                      ))}
+                    </div>
+                    {arrangement.center.label && (
+                      <span className="text-zinc-600 dark:text-zinc-400">
+                        {arrangement.center.label}
+                      </span>
+                    )}
+                  </div>
+                </div>
+
+                <div>
+                  <p className="text-xs text-zinc-500">
+                    Сусіди ({arrangement.neighbors.length}/8)
+                  </p>
+                  {arrangement.neighbors.length === 0 ? (
+                    <p className="mt-1 text-zinc-600 dark:text-zinc-400">
+                      Не потрібні — центр вже підходить сам по собі.
+                    </p>
+                  ) : (
+                    <div className="mt-1 flex flex-col gap-2">
+                      {arrangement.neighbors.map((n, idx) => (
+                        <div key={idx} className="flex items-center gap-2">
+                          <div className="flex gap-1">
+                            {parseGenome(n.genes).map((gene, i) => (
+                              <GeneBadge key={i} gene={gene} />
+                            ))}
+                          </div>
+                          {n.label && (
+                            <span className="text-zinc-600 dark:text-zinc-400">{n.label}</span>
+                          )}
+                        </div>
+                      ))}
+                    </div>
+                  )}
+                </div>
+
+                <p className="font-medium text-black dark:text-zinc-50">
+                  Шанс за одне схрещування: {(arrangement.chance * 100).toFixed(1)}%
+                </p>
+                {arrangement.chance > 0 && arrangement.chance < 1 && (
+                  <p className="text-zinc-600 dark:text-zinc-400">
+                    В середньому знадобиться ~{arrangement.expectedAttempts}{" "}
+                    {arrangement.expectedAttempts === 1 ? "спроба" : "спроб"} з цією ж
+                    розстановкою (клонуй центр і повторюй, поки не вийде).
+                  </p>
+                )}
+                {arrangement.chance === 0 && (
+                  <p className="text-red-600 dark:text-red-400">
+                    З наявних клонів цю ціль отримати неможливо — потрібен інший вихідний
+                    матеріал.
+                  </p>
+                )}
+              </div>
+            ) : null}
+          </div>
+        )}
       </div>
     </div>
   );
