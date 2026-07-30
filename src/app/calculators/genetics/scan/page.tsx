@@ -3,7 +3,7 @@
 import { useEffect, useMemo, useRef, useState } from "react";
 import Link from "next/link";
 import { useSession } from "next-auth/react";
-import { PSM, createWorker, type Worker } from "tesseract.js";
+import { PSM, createWorker, type Page, type Word, type Worker } from "tesseract.js";
 import { CROPS, CROP_LABELS, DEFAULT_TARGET_GENOME, type Crop } from "@/lib/calculators/genetics/data";
 import { greenGeneCount, parseGenome } from "@/lib/calculators/genetics/genetics";
 import { findBestArrangement } from "@/lib/calculators/genetics/arrangement";
@@ -168,12 +168,35 @@ export default function GeneticsScanPage() {
     return canvas;
   }
 
+  function findWordMatching(data: Page, predicate: (normalizedText: string) => boolean): Word | null {
+    for (const block of data.blocks ?? []) {
+      for (const paragraph of block.paragraphs ?? []) {
+        for (const line of paragraph.lines ?? []) {
+          for (const word of line.words ?? []) {
+            if (predicate(word.text.toLowerCase().replace(/[^a-z]/g, ""))) {
+              return word;
+            }
+          }
+        }
+      }
+    }
+    return null;
+  }
+
   /**
-   * Full-frame pass: finds the word "Genetics" anywhere on screen (via word bounding boxes,
-   * SPARSE_TEXT mode — built for isolated text blocks over a busy background) and derives a
-   * tight region around where the gene letters follow it. Only needed once per capture
-   * session (or after several consecutive misses), not on every scan tick — full-frame OCR
-   * is too slow and too noisy (game HUD/inventory text) to run repeatedly.
+   * Full-frame pass, run once per capture session (or after several consecutive misses) —
+   * full-frame OCR is too slow to run every tick, and small colored UI text (like the
+   * "Genetics" row itself) tends to get lost in a compressed screen-share video stream even
+   * when Tesseract can read it just fine once cropped tightly and upscaled (see below).
+   *
+   * Two strategies, in order:
+   * 1. Look for a word matching "genetics" directly — cheap, works if the stream quality
+   *    happens to be good enough.
+   * 2. Fall back to the plain white "A clipping of a ... plant." line, which reads reliably
+   *    even when "Genetics" itself doesn't, and derive a generous region below/around it
+   *    that should contain the Genetics row (same panel, a few lines down). This region is
+   *    then cropped + upscaled on every read tick, same as the old manual-calibration flow —
+   *    the upscale is what makes the compressed small text legible, not the locate step.
    */
   async function locateGeneticsRegion(): Promise<Rect | null> {
     const canvas = captureFrameToCanvas();
@@ -187,35 +210,33 @@ export default function GeneticsScanPage() {
     await worker.setParameters({ tessedit_pageseg_mode: PSM.AUTO });
     const { data } = await worker.recognize(canvas, {}, { blocks: true, text: true });
 
-    for (const block of data.blocks ?? []) {
-      for (const paragraph of block.paragraphs ?? []) {
-        for (const line of paragraph.lines ?? []) {
-          for (const word of line.words ?? []) {
-            if (word.text.toLowerCase().replace(/[^a-z]/g, "").includes("genetic")) {
-              const wordWidth = word.bbox.x1 - word.bbox.x0;
-              const wordHeight = word.bbox.y1 - word.bbox.y0;
-              return {
-                x: word.bbox.x0,
-                y: word.bbox.y0 - wordHeight * 0.4,
-                width: wordWidth * 5,
-                height: wordHeight * 1.8,
-              };
-            }
-          }
-        }
-      }
+    const geneticsWord = findWordMatching(data, (t) => t.includes("genetic"));
+    if (geneticsWord) {
+      const wordWidth = geneticsWord.bbox.x1 - geneticsWord.bbox.x0;
+      const wordHeight = geneticsWord.bbox.y1 - geneticsWord.bbox.y0;
+      return {
+        x: geneticsWord.bbox.x0,
+        y: geneticsWord.bbox.y0 - wordHeight * 0.4,
+        width: wordWidth * 5,
+        height: wordHeight * 1.8,
+      };
     }
 
-    // Diagnostic fallback so a failed locate still tells us something useful: is "genetics"
-    // present in the plain recognized text at all (meaning the word/bbox hierarchy just
-    // didn't carry it), or did OCR miss it entirely at this page-segmentation mode?
+    const clippingWord = findWordMatching(data, (t) => t.includes("clipping") || t.includes("cutting"));
+    if (clippingWord) {
+      const anchorWidth = clippingWord.bbox.x1 - clippingWord.bbox.x0;
+      const anchorHeight = clippingWord.bbox.y1 - clippingWord.bbox.y0;
+      return {
+        x: Math.max(0, clippingWord.bbox.x0 - anchorWidth * 0.1),
+        y: clippingWord.bbox.y1,
+        width: anchorWidth * 1.6,
+        height: anchorHeight * 12,
+      };
+    }
+
+    // Diagnostic fallback so a failed locate still tells us something useful.
     const plainText = (data.text ?? "").trim();
-    const foundInPlainText = plainText.toLowerCase().includes("genetic");
-    setLastOcrText(
-      foundInPlainText
-        ? `Слово "Genetics" є в тексті, але не вдалось визначити позицію. Розпізнано: "${plainText.slice(0, 200)}"`
-        : `Не знайшов "Genetics" у розпізнаному тексті. Розпізнано: "${plainText.slice(0, 200)}"`
-    );
+    setLastOcrText(`Не знайшов орієнтир на екрані. Розпізнано: "${plainText.slice(0, 250)}"`);
     return null;
   }
 
@@ -236,7 +257,10 @@ export default function GeneticsScanPage() {
     }
 
     const worker = await ensureWorker();
-    await worker.setParameters({ tessedit_pageseg_mode: PSM.SINGLE_LINE });
+    // SINGLE_BLOCK rather than SINGLE_LINE: the region may span several lines (Harvests /
+    // Genetics / Resiliences) when it came from the "clipping" anchor fallback, not just the
+    // tight one-line box from a direct "genetics" word match.
+    await worker.setParameters({ tessedit_pageseg_mode: PSM.SINGLE_BLOCK });
     const {
       data: { text },
     } = await worker.recognize(canvas);
