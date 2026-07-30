@@ -17,9 +17,19 @@ interface SavedGenome {
   createdAt: string;
 }
 
+interface Rect {
+  x: number;
+  y: number;
+  width: number;
+  height: number;
+}
+
 /** Gap between scans (after the previous one finishes) — full-frame OCR is slower than a
  * cropped region, so a recursive delay avoids piling up overlapping recognize() calls. */
 const SCAN_DELAY_MS = 800;
+
+/** How many misses on the discovered region before we assume the UI moved and re-locate. */
+const MAX_MISSES_BEFORE_RELOCATE = 5;
 
 const TARGET_GENOME = parseGenome(DEFAULT_TARGET_GENOME);
 
@@ -35,6 +45,8 @@ export default function GeneticsScanPage() {
   const lastGenesRef = useRef<string | null>(null);
   const audioContextRef = useRef<AudioContext | null>(null);
   const cropRef = useRef<Crop>("HEMP");
+  const discoveredRegionRef = useRef<Rect | null>(null);
+  const consecutiveMissesRef = useRef(0);
 
   const [isCapturing, setIsCapturing] = useState(false);
   const [isScanning, setIsScanning] = useState(false);
@@ -106,6 +118,8 @@ export default function GeneticsScanPage() {
 
   async function handleStartCapture() {
     setErrorMessage(null);
+    discoveredRegionRef.current = null;
+    consecutiveMissesRef.current = 0;
     if (!navigator.mediaDevices?.getDisplayMedia) {
       setErrorMessage("Цей браузер не підтримує захоплення екрана.");
       return;
@@ -126,31 +140,92 @@ export default function GeneticsScanPage() {
 
   async function ensureWorker(): Promise<Worker> {
     if (!workerRef.current) {
-      const worker = await createWorker("eng");
-      // Sparse text mode: finds isolated blocks of text anywhere in the frame, rather than
-      // assuming one uniform page/paragraph — needed since the genetics text is a small UI
-      // overlay on top of a busy 3D game scene, not a document.
-      await worker.setParameters({ tessedit_pageseg_mode: PSM.SPARSE_TEXT });
-      workerRef.current = worker;
+      workerRef.current = await createWorker("eng");
     }
     return workerRef.current;
   }
 
-  async function scanOnce() {
+  function captureFrameToCanvas(rect?: Rect, scaleUp = 1): HTMLCanvasElement | null {
     const video = videoRef.current;
     if (!video || video.videoWidth === 0) {
-      return;
+      return null;
+    }
+    const sx = rect ? Math.max(0, rect.x) : 0;
+    const sy = rect ? Math.max(0, rect.y) : 0;
+    const sw = rect ? Math.min(rect.width, video.videoWidth - sx) : video.videoWidth;
+    const sh = rect ? Math.min(rect.height, video.videoHeight - sy) : video.videoHeight;
+    if (sw <= 0 || sh <= 0) {
+      return null;
     }
     const canvas = document.createElement("canvas");
-    canvas.width = video.videoWidth;
-    canvas.height = video.videoHeight;
+    canvas.width = sw * scaleUp;
+    canvas.height = sh * scaleUp;
     const ctx = canvas.getContext("2d");
     if (!ctx) {
+      return null;
+    }
+    ctx.drawImage(video, sx, sy, sw, sh, 0, 0, canvas.width, canvas.height);
+    return canvas;
+  }
+
+  /**
+   * Full-frame pass: finds the word "Genetics" anywhere on screen (via word bounding boxes,
+   * SPARSE_TEXT mode — built for isolated text blocks over a busy background) and derives a
+   * tight region around where the gene letters follow it. Only needed once per capture
+   * session (or after several consecutive misses), not on every scan tick — full-frame OCR
+   * is too slow and too noisy (game HUD/inventory text) to run repeatedly.
+   */
+  async function locateGeneticsRegion(): Promise<Rect | null> {
+    const canvas = captureFrameToCanvas();
+    if (!canvas) {
+      return null;
+    }
+    const worker = await ensureWorker();
+    await worker.setParameters({ tessedit_pageseg_mode: PSM.SPARSE_TEXT });
+    const { data } = await worker.recognize(canvas, {}, { blocks: true });
+
+    for (const block of data.blocks ?? []) {
+      for (const paragraph of block.paragraphs) {
+        for (const line of paragraph.lines) {
+          for (const word of line.words) {
+            if (word.text.toLowerCase().replace(/[^a-z]/g, "").includes("genetic")) {
+              const wordWidth = word.bbox.x1 - word.bbox.x0;
+              const wordHeight = word.bbox.y1 - word.bbox.y0;
+              return {
+                x: word.bbox.x0,
+                y: word.bbox.y0 - wordHeight * 0.4,
+                width: wordWidth * 5,
+                height: wordHeight * 1.8,
+              };
+            }
+          }
+        }
+      }
+    }
+    return null;
+  }
+
+  async function scanOnce() {
+    if (!discoveredRegionRef.current) {
+      setLastOcrText("Шукаю область з генетикою на екрані...");
+      const region = await locateGeneticsRegion();
+      if (!region) {
+        setLastOcrText(
+          "Не знайшов слово \"Genetics\" на екрані. Наведи курсор на клон у грі так, щоб підказка була видима, і спробуй ще раз."
+        );
+        return;
+      }
+      discoveredRegionRef.current = region;
+      consecutiveMissesRef.current = 0;
+    }
+
+    const canvas = captureFrameToCanvas(discoveredRegionRef.current, 3);
+    if (!canvas) {
       return;
     }
-    ctx.drawImage(video, 0, 0, canvas.width, canvas.height);
 
     const worker = await ensureWorker();
+    await worker.setParameters({ tessedit_pageseg_mode: PSM.SINGLE_LINE });
     const {
       data: { text },
     } = await worker.recognize(canvas);
@@ -159,6 +234,7 @@ export default function GeneticsScanPage() {
     const genes = parseGenesFromOcrText(text);
     if (genes && genes !== lastGenesRef.current) {
       lastGenesRef.current = genes;
+      consecutiveMissesRef.current = 0;
       playPumSound();
       const response = await fetch("/api/genomes", {
         method: "POST",
@@ -173,6 +249,11 @@ export default function GeneticsScanPage() {
     }
     if (!genes) {
       lastGenesRef.current = null;
+      consecutiveMissesRef.current += 1;
+      if (consecutiveMissesRef.current >= MAX_MISSES_BEFORE_RELOCATE) {
+        discoveredRegionRef.current = null;
+        consecutiveMissesRef.current = 0;
+      }
     }
   }
 
@@ -257,8 +338,12 @@ export default function GeneticsScanPage() {
         </div>
 
         <ol className="mt-4 list-decimal pl-5 text-sm text-zinc-600 dark:text-zinc-400">
-          <li>Захопи екран/вікно з грою — виділяти нічого не потрібно, сканується весь кадр.</li>
-          <li>Натисни «Почати сканування» і наводь курсор по черзі на кожен клон у грі.</li>
+          <li>Захопи екран/вікно з грою — виділяти нічого не потрібно.</li>
+          <li>Натисни «Почати сканування» і наведи курсор на будь-який клон, щоб з&apos;явилась підказка з геном.</li>
+          <li>
+            Перший скан повільніший — сайт шукає слово «Genetics» по всьому кадру. Далі він
+            запам&apos;ятовує цю область і сканує тільки її — швидко й точно.
+          </li>
           <li>Кожен розпізнаний клон одразу зберігається в базу зі звуком.</li>
           <li>Найкращі варіанти схрещування під ціль {DEFAULT_TARGET_GENOME} показуються автоматично нижче.</li>
         </ol>
