@@ -2,6 +2,7 @@ import Link from "next/link";
 import Image from "next/image";
 import { getServerDetail } from "@/lib/servers/getServerDetail";
 import { getMapPreview } from "@/lib/maps/getMapPreview";
+import { CopyableAddress } from "./ServerActions";
 
 function formatDate(iso: string | null): string {
   if (!iso) {
@@ -107,6 +108,12 @@ export default async function ServerDetailPage({ params }: { params: Promise<{ a
             >
               Підключитись
             </a>
+
+            <div className="flex flex-col gap-1.5">
+              <p className="text-xs uppercase tracking-wide text-zinc-500">Адреса</p>
+              <CopyableAddress label="Game Port" address={server.connectAddr} />
+              <CopyableAddress label="Query Port" address={server.queryAddr} />
+            </div>
 
             <p className="text-xs text-zinc-400">
               {result.fromCache ? "З кешу" : "Свіжі дані"} · оновлено {formatDate(detail.fetchedAt)}
