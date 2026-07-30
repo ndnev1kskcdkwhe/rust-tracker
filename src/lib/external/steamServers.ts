@@ -53,6 +53,9 @@ function parseGametype(gametype: string): { wipedAt: string | null; gameMode: st
 export interface RustServer {
   /** "ip:port" — the address to actually connect to (steam://connect/{connectAddr}). */
   connectAddr: string;
+  /** "ip:port" — Steam's master-list query address (the raw `addr` field). Used to re-look up
+   * this exact server (`getServerByAddr`) and as the target for a raw A2S_RULES query. */
+  queryAddr: string;
   name: string;
   players: number;
   maxPlayers: number;
@@ -87,6 +90,7 @@ function normalizeServer(raw: RawSteamServer): RustServer {
 
   return {
     connectAddr: `${ip}:${raw.gameport}`,
+    queryAddr: raw.addr,
     name: raw.name,
     players: raw.players,
     maxPlayers: raw.max_players,
@@ -122,4 +126,19 @@ export async function searchRustServers(nameQuery: string, limit = 20): Promise<
   const data = await res.json();
   const servers: RawSteamServer[] = data?.response?.servers ?? [];
   return servers.map(normalizeServer);
+}
+
+/** Looks up one specific server by its query address (Steam's `\addr\` filter, verified live). */
+export async function getServerByAddr(queryAddr: string): Promise<RustServer | null> {
+  const url = new URL("https://api.steampowered.com/IGameServersService/GetServerList/v1/");
+  url.searchParams.set("key", getApiKey());
+  url.searchParams.set("filter", `\\appid\\${RUST_APP_ID}\\addr\\${queryAddr}`);
+
+  const res = await fetch(url);
+  if (!res.ok) {
+    throw new Error(`Steam GetServerList failed: ${res.status}`);
+  }
+  const data = await res.json();
+  const servers: RawSteamServer[] = data?.response?.servers ?? [];
+  return servers.length > 0 ? normalizeServer(servers[0]) : null;
 }
