@@ -2,6 +2,7 @@
 
 import { useEffect, useRef, useState } from "react";
 import Link from "next/link";
+import { useTranslation } from "@/lib/i18n/LocaleProvider";
 
 interface RustServer {
   queryAddr: string;
@@ -17,6 +18,7 @@ type SearchResult =
 const DEBOUNCE_MS = 300;
 
 export default function ServersPage() {
+  const { dict } = useTranslation();
   const [query, setQuery] = useState("");
   const [result, setResult] = useState<SearchResult | null>(null);
   const requestIdRef = useRef(0);
@@ -35,14 +37,14 @@ export default function ServersPage() {
         return; // a newer keystroke already superseded this request
       }
       if (!res.ok) {
-        setResult({ query: trimmed, status: "error", message: data.error ?? "Не вдалося знайти сервери" });
+        setResult({ query: trimmed, status: "error", message: data.error ?? dict.servers.empty });
         return;
       }
       setResult({ query: trimmed, status: "ready", servers: data.servers });
     }, DEBOUNCE_MS);
 
     return () => clearTimeout(timer);
-  }, [query]);
+  }, [query, dict.servers.empty]);
 
   const trimmedQuery = query.trim();
   const isLoading = trimmedQuery !== "" && result?.query !== trimmedQuery;
@@ -51,33 +53,31 @@ export default function ServersPage() {
     <div className="flex flex-1 flex-col items-center bg-zinc-50 px-6 py-16 font-sans dark:bg-black">
       <div className="w-full max-w-2xl">
         <Link href="/" className="text-sm text-zinc-600 dark:text-zinc-400">
-          ← На головну
+          {dict.servers.backHome}
         </Link>
-        <h1 className="mt-4 text-2xl font-semibold text-black dark:text-zinc-50">Пошук сервера</h1>
-        <p className="mt-1 text-sm text-zinc-600 dark:text-zinc-400">
-          Почни вводити назву — результати з&apos;являються одразу.
-        </p>
+        <h1 className="mt-4 text-2xl font-semibold text-black dark:text-zinc-50">{dict.servers.title}</h1>
+        <p className="mt-1 text-sm text-zinc-600 dark:text-zinc-400">{dict.servers.subtitle}</p>
 
         <input
           type="text"
           value={query}
           onChange={(e) => setQuery(e.target.value)}
-          placeholder="Rust Hungary, Facepunch, EU Vanilla..."
+          placeholder={dict.servers.placeholder}
           autoFocus
           className="mt-6 w-full rounded-lg border border-black/[.08] px-4 py-3 text-black dark:border-white/[.145] dark:bg-zinc-900 dark:text-zinc-50"
         />
 
         <div className="mt-6 flex flex-col divide-y divide-black/[.06] rounded-2xl border border-black/[.08] bg-white dark:divide-white/[.08] dark:border-white/[.145] dark:bg-black">
-          {!trimmedQuery && <p className="px-5 py-6 text-sm text-zinc-500">Введи назву сервера вище.</p>}
+          {!trimmedQuery && <p className="px-5 py-6 text-sm text-zinc-500">{dict.servers.idle}</p>}
 
-          {trimmedQuery && isLoading && <p className="px-5 py-6 text-sm text-zinc-500">Шукаю...</p>}
+          {trimmedQuery && isLoading && <p className="px-5 py-6 text-sm text-zinc-500">{dict.servers.loading}</p>}
 
           {trimmedQuery && !isLoading && result?.status === "error" && (
             <p className="px-5 py-6 text-sm text-red-600 dark:text-red-400">{result.message}</p>
           )}
 
           {trimmedQuery && !isLoading && result?.status === "ready" && result.servers.length === 0 && (
-            <p className="px-5 py-6 text-sm text-zinc-500">Нічого не знайдено за цим запитом.</p>
+            <p className="px-5 py-6 text-sm text-zinc-500">{dict.servers.empty}</p>
           )}
 
           {trimmedQuery &&

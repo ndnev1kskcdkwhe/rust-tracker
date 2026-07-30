@@ -3,6 +3,8 @@ import { Geist, Geist_Mono } from "next/font/google";
 import "./globals.css";
 import { Providers } from "./providers";
 import { HomeButton } from "./HomeButton";
+import { LanguageSwitcher } from "./LanguageSwitcher";
+import { getServerLocale } from "@/lib/i18n/serverLocale";
 
 const geistSans = Geist({
   variable: "--font-geist-sans",
@@ -19,19 +21,24 @@ export const metadata: Metadata = {
   description: "Пошук гравців і серверів Rust + ігрові калькулятори",
 };
 
-export default function RootLayout({
+export default async function RootLayout({
   children,
 }: Readonly<{
   children: React.ReactNode;
 }>) {
+  const locale = await getServerLocale();
+
   return (
     <html
-      lang="uk"
+      lang={locale}
       className={`${geistSans.variable} ${geistMono.variable} h-full antialiased`}
     >
       <body className="min-h-full flex flex-col">
-        <HomeButton />
-        <Providers>{children}</Providers>
+        <Providers locale={locale}>
+          <HomeButton />
+          {children}
+          <LanguageSwitcher />
+        </Providers>
       </body>
     </html>
   );

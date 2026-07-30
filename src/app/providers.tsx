@@ -1,7 +1,13 @@
 "use client";
 
 import { SessionProvider } from "next-auth/react";
+import { LocaleProvider } from "@/lib/i18n/LocaleProvider";
+import type { Locale } from "@/lib/i18n/locale";
 
-export function Providers({ children }: { children: React.ReactNode }) {
-  return <SessionProvider>{children}</SessionProvider>;
+export function Providers({ children, locale }: { children: React.ReactNode; locale: Locale }) {
+  return (
+    <SessionProvider>
+      <LocaleProvider initialLocale={locale}>{children}</LocaleProvider>
+    </SessionProvider>
+  );
 }

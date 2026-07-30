@@ -1,10 +1,12 @@
 import Link from "next/link";
 import { auth, signOut } from "@/auth";
+import { getDictionary } from "@/lib/i18n/serverLocale";
 import { HomeHero } from "./HomeHero";
 import { HomeFeatures } from "./HomeFeatures";
 
 export default async function Home() {
   const session = await auth();
+  const { dict } = await getDictionary();
 
   return (
     <div className="flex flex-1 flex-col bg-black font-sans">
@@ -16,7 +18,7 @@ export default async function Home() {
           {session?.user ? (
             <>
               <Link href="/account" className="text-zinc-300 transition-colors hover:text-white">
-                👤 Особисте
+                {dict.nav.account}
               </Link>
               <form
                 action={async () => {
@@ -28,20 +30,20 @@ export default async function Home() {
                   type="submit"
                   className="rounded-full border border-white/15 px-4 py-1.5 text-zinc-300 transition-colors hover:border-white/30 hover:text-white"
                 >
-                  Вийти
+                  {dict.nav.logout}
                 </button>
               </form>
             </>
           ) : (
             <>
               <Link href="/login" className="text-zinc-300 transition-colors hover:text-white">
-                Увійти
+                {dict.nav.login}
               </Link>
               <Link
                 href="/register"
                 className="rounded-full bg-white px-4 py-1.5 font-medium text-black transition-colors hover:bg-zinc-200"
               >
-                Реєстрація
+                {dict.nav.register}
               </Link>
             </>
           )}

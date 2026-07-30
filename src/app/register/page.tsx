@@ -4,9 +4,11 @@ import { useState } from "react";
 import { useRouter } from "next/navigation";
 import Link from "next/link";
 import { signIn } from "next-auth/react";
+import { useTranslation } from "@/lib/i18n/LocaleProvider";
 
 export default function RegisterPage() {
   const router = useRouter();
+  const { dict } = useTranslation();
   const [name, setName] = useState("");
   const [email, setEmail] = useState("");
   const [password, setPassword] = useState("");
@@ -25,8 +27,10 @@ export default function RegisterPage() {
     });
 
     if (!response.ok) {
+      // The API's own error messages are still Ukrainian-only for now — server-side validation
+      // text isn't covered by this translation pass yet.
       const data = await response.json().catch(() => ({}));
-      setError(data.error ?? "Не вдалося зареєструватися");
+      setError(data.error ?? dict.auth.registerButton);
       setIsSubmitting(false);
       return;
     }
@@ -40,7 +44,7 @@ export default function RegisterPage() {
     setIsSubmitting(false);
 
     if (result?.error) {
-      setError("Реєстрація успішна, але вхід не вдався. Спробуйте увійти вручну.");
+      setError(dict.auth.registerFailedButLoggedIn);
       return;
     }
 
@@ -54,12 +58,12 @@ export default function RegisterPage() {
         onSubmit={handleSubmit}
         className="flex w-full max-w-sm flex-col gap-4 rounded-2xl border border-black/[.08] bg-white p-8 dark:border-white/[.145] dark:bg-black"
       >
-        <h1 className="text-xl font-semibold text-black dark:text-zinc-50">Реєстрація</h1>
+        <h1 className="text-xl font-semibold text-black dark:text-zinc-50">{dict.auth.registerTitle}</h1>
 
         {error && <p className="text-sm text-red-600 dark:text-red-400">{error}</p>}
 
         <label className="flex flex-col gap-1 text-sm text-zinc-700 dark:text-zinc-300">
-          Ім&apos;я (необов&apos;язково)
+          {dict.auth.nameLabel}
           <input
             type="text"
             value={name}
@@ -69,7 +73,7 @@ export default function RegisterPage() {
         </label>
 
         <label className="flex flex-col gap-1 text-sm text-zinc-700 dark:text-zinc-300">
-          Email
+          {dict.auth.emailLabel}
           <input
             type="email"
             required
@@ -80,7 +84,7 @@ export default function RegisterPage() {
         </label>
 
         <label className="flex flex-col gap-1 text-sm text-zinc-700 dark:text-zinc-300">
-          Пароль (мінімум 8 символів)
+          {dict.auth.passwordHintLabel}
           <input
             type="password"
             required
@@ -96,12 +100,12 @@ export default function RegisterPage() {
           disabled={isSubmitting}
           className="mt-2 h-11 rounded-full bg-foreground px-6 text-sm font-medium text-background transition-colors hover:bg-[#383838] disabled:opacity-50 dark:hover:bg-[#ccc]"
         >
-          {isSubmitting ? "Реєстрація..." : "Зареєструватися"}
+          {isSubmitting ? dict.auth.registerButtonLoading : dict.auth.registerButton}
         </button>
 
         <div className="flex items-center gap-3 text-xs text-zinc-400 dark:text-zinc-500">
           <div className="h-px flex-1 bg-black/[.08] dark:bg-white/[.145]" />
-          або
+          {dict.auth.or}
           <div className="h-px flex-1 bg-black/[.08] dark:bg-white/[.145]" />
         </div>
 
@@ -109,13 +113,13 @@ export default function RegisterPage() {
           href="/api/auth/steam/login"
           className="flex h-11 items-center justify-center gap-2 rounded-full bg-[#1b2838] px-6 text-sm font-medium text-white transition-colors hover:bg-[#2a3f5a]"
         >
-          Зареєструватися через Steam
+          {dict.auth.steamRegister}
         </Link>
 
         <p className="text-center text-sm text-zinc-600 dark:text-zinc-400">
-          Вже є акаунт?{" "}
+          {dict.auth.haveAccount}{" "}
           <Link href="/login" className="font-medium text-black dark:text-zinc-50">
-            Увійти
+            {dict.auth.loginLink}
           </Link>
         </p>
       </form>
