@@ -85,3 +85,21 @@ model PlayerCache {
   data      Json
   fetchedAt DateTime @default(now())
 }
+
+/// Cached server search results keyed by the (lowercased) search query. `data` holds a
+/// serialized RustServer[] array. TTL is short (~90s in the app layer, not 15-60 min like
+/// PlayerCache) because player counts and wipe state change far more often than a Steam profile.
+model ServerCache {
+  query     String   @id
+  data      Json
+  fetchedAt DateTime @default(now())
+}
+
+/// Cached RustMaps map data keyed by "{size}_{seed}". Map data is immutable for a given
+/// seed+size (RustMaps generates the same map deterministically), so this has no TTL — once
+/// fetched, it's cached indefinitely and never needs a live re-fetch.
+model MapCache {
+  key       String   @id
+  data      Json
+  fetchedAt DateTime @default(now())
+}

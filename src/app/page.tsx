@@ -15,6 +15,12 @@ export default async function Home() {
           <Link href="/players" className="text-zinc-300 transition-colors hover:text-white">
             Пошук гравця
           </Link>
+          <Link href="/servers" className="text-zinc-300 transition-colors hover:text-white">
+            Сервери
+          </Link>
+          <Link href="/maps" className="text-zinc-300 transition-colors hover:text-white">
+            Мапи
+          </Link>
           <Link href="/calculators" className="text-zinc-300 transition-colors hover:text-white">
             Калькулятори
           </Link>
