@@ -27,6 +27,7 @@ export default function GeneticsScanPage() {
   const workerRef = useRef<Worker | null>(null);
   const scanTimerRef = useRef<ReturnType<typeof setInterval> | null>(null);
   const lastGenesRef = useRef<string | null>(null);
+  const audioContextRef = useRef<AudioContext | null>(null);
 
   const [isCapturing, setIsCapturing] = useState(false);
   const [isScanning, setIsScanning] = useState(false);
@@ -35,6 +36,7 @@ export default function GeneticsScanPage() {
   const [dragRect, setDragRect] = useState<Rect | null>(null);
   const [errorMessage, setErrorMessage] = useState<string | null>(null);
   const [lastOcrText, setLastOcrText] = useState<string>("");
+  const [isTestingOcr, setIsTestingOcr] = useState(false);
   const [crop, setCrop] = useState<Crop>("HEMP");
   const [queue, setQueue] = useState<QueuedClone[]>([]);
   const [isSaving, setIsSaving] = useState(false);
@@ -56,8 +58,30 @@ export default function GeneticsScanPage() {
       workerRef.current.terminate();
       workerRef.current = null;
     }
+    if (audioContextRef.current) {
+      audioContextRef.current.close();
+      audioContextRef.current = null;
+    }
     setIsScanning(false);
     setIsCapturing(false);
+  }
+
+  function playPumSound() {
+    if (!audioContextRef.current) {
+      return;
+    }
+    const ctx = audioContextRef.current;
+    const oscillator = ctx.createOscillator();
+    const gain = ctx.createGain();
+    oscillator.connect(gain);
+    gain.connect(ctx.destination);
+    oscillator.type = "sine";
+    oscillator.frequency.setValueAtTime(700, ctx.currentTime);
+    oscillator.frequency.exponentialRampToValueAtTime(180, ctx.currentTime + 0.18);
+    gain.gain.setValueAtTime(0.3, ctx.currentTime);
+    gain.gain.exponentialRampToValueAtTime(0.001, ctx.currentTime + 0.18);
+    oscillator.start();
+    oscillator.stop(ctx.currentTime + 0.18);
   }
 
   async function handleStartCapture() {
@@ -139,7 +163,7 @@ export default function GeneticsScanPage() {
     if (!calibration || !videoRef.current) return;
     const video = videoRef.current;
     const canvas = document.createElement("canvas");
-    const scaleUp = 2;
+    const scaleUp = 3;
     canvas.width = calibration.width * scaleUp;
     canvas.height = calibration.height * scaleUp;
     const ctx = canvas.getContext("2d");
@@ -166,14 +190,27 @@ export default function GeneticsScanPage() {
     if (genes && genes !== lastGenesRef.current) {
       lastGenesRef.current = genes;
       setQueue((prev) => [{ id: `${Date.now()}-${Math.random()}`, genes }, ...prev]);
+      playPumSound();
     }
     if (!genes) {
       lastGenesRef.current = null;
     }
   }
 
+  async function handleTestOcr() {
+    setIsTestingOcr(true);
+    await scanOnce();
+    setIsTestingOcr(false);
+  }
+
   function handleStartScanning() {
     if (!calibration) return;
+    if (!audioContextRef.current) {
+      audioContextRef.current = new AudioContext();
+    }
+    if (audioContextRef.current.state === "suspended") {
+      audioContextRef.current.resume();
+    }
     setIsScanning(true);
     scanTimerRef.current = setInterval(scanOnce, SCAN_INTERVAL_MS);
   }
@@ -287,6 +324,14 @@ export default function GeneticsScanPage() {
                 )}
                 <button
                   type="button"
+                  disabled={!calibration || isTestingOcr}
+                  onClick={handleTestOcr}
+                  className="h-11 rounded-full border border-solid border-black/[.08] px-6 text-sm font-medium transition-colors hover:border-transparent hover:bg-black/[.04] disabled:opacity-50 dark:border-white/[.145] dark:hover:bg-[#1a1a1a]"
+                >
+                  {isTestingOcr ? "Перевіряю..." : "Тест OCR зараз"}
+                </button>
+                <button
+                  type="button"
                   onClick={stopEverything}
                   className="text-sm text-red-600 hover:underline dark:text-red-400"
                 >
@@ -294,7 +339,7 @@ export default function GeneticsScanPage() {
                 </button>
               </div>
 
-              {isScanning && (
+              {(isScanning || lastOcrText) && (
                 <p className="font-mono text-xs text-zinc-500 dark:text-zinc-500">
                   Останній OCR-текст: &quot;{lastOcrText || "…"}&quot;
                 </p>
