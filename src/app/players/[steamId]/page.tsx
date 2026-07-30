@@ -1,6 +1,8 @@
 import Link from "next/link";
 import Image from "next/image";
+import { auth } from "@/auth";
 import { getPlayerProfile } from "@/lib/players/getPlayerProfile";
+import { recordPlayerView } from "@/lib/players/history";
 import { countryCodeToFlagEmoji } from "@/lib/players/countryFlag";
 import { CopyableSteamId, ShareProfileButton } from "./ProfileActions";
 
@@ -33,6 +35,13 @@ export default async function PlayerProfilePage({
 }) {
   const { steamId } = await params;
   const result = await getPlayerProfile(decodeURIComponent(steamId));
+
+  if (result.ok) {
+    const session = await auth();
+    if (session?.user?.id) {
+      await recordPlayerView(session.user.id, result.profile.steamId);
+    }
+  }
 
   return (
     <div className="flex flex-1 flex-col items-center bg-zinc-50 px-6 py-16 font-sans dark:bg-black">

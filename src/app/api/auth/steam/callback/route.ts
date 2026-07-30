@@ -1,5 +1,6 @@
 import { NextResponse } from "next/server";
 import { encode } from "next-auth/jwt";
+import { auth } from "@/auth";
 import { verifySteamCallback } from "@/lib/auth/steamOpenId";
 import { getPlayerSummary } from "@/lib/external/steam";
 import { prisma } from "@/lib/prisma";
@@ -9,11 +10,12 @@ const SESSION_COOKIE_NAME = "authjs.session-token";
 export async function GET(request: Request) {
   const url = new URL(request.url);
   const baseUrl = process.env.NEXTAUTH_URL ?? "http://localhost:3000";
-  const loginErrorUrl = `${baseUrl}/login?error=SteamAuth`;
+  const isLinking = url.searchParams.get("mode") === "link";
+  const errorRedirect = isLinking ? `${baseUrl}/account?error=SteamLink` : `${baseUrl}/login?error=SteamAuth`;
 
   const steamId = await verifySteamCallback(url.searchParams);
   if (!steamId) {
-    return NextResponse.redirect(loginErrorUrl);
+    return NextResponse.redirect(errorRedirect);
   }
 
   let profile: { name: string; avatarUrl: string } | null = null;
@@ -24,6 +26,25 @@ export async function GET(request: Request) {
     }
   } catch {
     // Steam profile fetch failing shouldn't block login — we still have a verified SteamID.
+  }
+
+  if (isLinking) {
+    const session = await auth();
+    if (!session?.user?.id) {
+      return NextResponse.redirect(`${baseUrl}/login`);
+    }
+
+    const takenBy = await prisma.user.findUnique({ where: { steamId } });
+    if (takenBy && takenBy.id !== session.user.id) {
+      return NextResponse.redirect(`${baseUrl}/account?error=SteamTaken`);
+    }
+
+    await prisma.user.update({
+      where: { id: session.user.id },
+      data: { steamId, name: profile?.name, avatarUrl: profile?.avatarUrl },
+    });
+
+    return NextResponse.redirect(`${baseUrl}/account`);
   }
 
   const dbUser = await prisma.user.upsert({

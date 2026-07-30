@@ -25,6 +25,8 @@ model User {
   updatedAt    DateTime      @updatedAt
   subscription Subscription?
   plantGenomes PlantGenome[]
+  playerViews  PlayerViewHistory[]
+  mapViews     MapViewHistory[]
 }
 
 enum SubscriptionTier {
@@ -102,4 +104,31 @@ model MapCache {
   key       String   @id
   data      Json
   fetchedAt DateTime @default(now())
+}
+
+/// A logged-in user's viewed-player history, for the personal account page. Unique per
+/// (userId, steamId) — repeat views just bump `viewedAt` instead of creating duplicate rows.
+model PlayerViewHistory {
+  id       String   @id @default(cuid())
+  user     User     @relation(fields: [userId], references: [id], onDelete: Cascade)
+  userId   String
+  steamId  String
+  viewedAt DateTime @default(now())
+
+  @@unique([userId, steamId])
+  @@index([userId, viewedAt])
+}
+
+/// A logged-in user's viewed-map history. Unique per (userId, size, seed) — repeat views just
+/// bump `viewedAt`.
+model MapViewHistory {
+  id       String   @id @default(cuid())
+  user     User     @relation(fields: [userId], references: [id], onDelete: Cascade)
+  userId   String
+  size     Int
+  seed     Int
+  viewedAt DateTime @default(now())
+
+  @@unique([userId, size, seed])
+  @@index([userId, viewedAt])
 }

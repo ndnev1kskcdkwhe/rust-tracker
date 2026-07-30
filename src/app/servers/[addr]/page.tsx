@@ -1,8 +1,10 @@
 import Link from "next/link";
 import Image from "next/image";
+import { auth } from "@/auth";
 import { getServerDetail } from "@/lib/servers/getServerDetail";
 import { RUST_APP_ID } from "@/lib/external/steamServers";
 import { getMapPreview } from "@/lib/maps/getMapPreview";
+import { recordMapView } from "@/lib/maps/history";
 import { CopyableAddress } from "./ServerActions";
 
 function formatDate(iso: string | null): string {
@@ -55,6 +57,13 @@ export default async function ServerDetailPage({ params }: { params: Promise<{ a
   const { server, mapSeed, wipeCycle, estimatedNextWipe } = detail;
 
   const mapPreview = mapSeed ? await getMapPreview(mapSeed.size, mapSeed.seed) : null;
+
+  if (mapSeed && mapPreview?.ok && mapPreview.status === "ready") {
+    const session = await auth();
+    if (session?.user?.id) {
+      await recordMapView(session.user.id, mapSeed.size, mapSeed.seed);
+    }
+  }
 
   return (
     <div className="flex flex-1 flex-col items-center bg-zinc-50 px-6 py-16 font-sans dark:bg-black">

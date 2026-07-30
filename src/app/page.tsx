@@ -1,6 +1,7 @@
 import Link from "next/link";
 import { auth, signOut } from "@/auth";
 import { HomeHero } from "./HomeHero";
+import { HomeFeatures } from "./HomeFeatures";
 
 export default async function Home() {
   const session = await auth();
@@ -12,18 +13,11 @@ export default async function Home() {
           Rust <span className="text-orange-500">Tracker</span>
         </span>
         <div className="flex flex-wrap items-center gap-4 text-sm">
-          <Link href="/players" className="text-zinc-300 transition-colors hover:text-white">
-            Пошук гравця
-          </Link>
-          <Link href="/servers" className="text-zinc-300 transition-colors hover:text-white">
-            Сервери
-          </Link>
-          <Link href="/calculators" className="text-zinc-300 transition-colors hover:text-white">
-            Калькулятори
-          </Link>
           {session?.user ? (
             <>
-              <span className="text-zinc-500">{session.user.name || session.user.email}</span>
+              <Link href="/account" className="text-zinc-300 transition-colors hover:text-white">
+                👤 Особисте
+              </Link>
               <form
                 action={async () => {
                   "use server";
@@ -55,6 +49,7 @@ export default async function Home() {
       </nav>
 
       <HomeHero />
+      <HomeFeatures />
     </div>
   );
 }
