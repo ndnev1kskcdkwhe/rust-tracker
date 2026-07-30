@@ -20,6 +20,14 @@ export interface SteamPlayerSummary {
   profileUrl: string;
   /** 0 = offline, 1 = online, etc. — see Steam's EPersonaState. */
   personaState: number;
+  /** Only present when the profile shares real name (public/friends-only visibility). */
+  realName: string | null;
+  /** ISO timestamp; only present when visibility allows it. */
+  accountCreatedAt: string | null;
+  /** ISO 3166-1 alpha-2, e.g. "UA"; only present when visibility allows it. */
+  countryCode: string | null;
+  /** Set when the player is currently in-game (any game, not just Rust). */
+  currentGame: { name: string; serverIp: string | null } | null;
 }
 
 export async function getPlayerSummary(steamId64: string): Promise<SteamPlayerSummary | null> {
@@ -43,6 +51,12 @@ export async function getPlayerSummary(steamId64: string): Promise<SteamPlayerSu
     avatarUrl: player.avatarfull,
     profileUrl: player.profileurl,
     personaState: player.personastate,
+    realName: player.realname ?? null,
+    accountCreatedAt: player.timecreated ? new Date(player.timecreated * 1000).toISOString() : null,
+    countryCode: player.loccountrycode ?? null,
+    currentGame: player.gameextrainfo
+      ? { name: player.gameextrainfo, serverIp: player.gameserverip ?? null }
+      : null,
   };
 }
 

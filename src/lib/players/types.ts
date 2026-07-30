@@ -20,6 +20,13 @@ export interface PlayerProfile {
   name: string;
   avatarUrl: string;
   profileUrl: string;
+  isOnline: boolean;
+  /** Only present when the profile's visibility settings allow it. */
+  realName: string | null;
+  accountCreatedAt: string | null;
+  countryCode: string | null;
+  /** Set when the player is currently in a game session (any game, not just Rust). */
+  currentGame: { name: string; serverIp: string | null } | null;
   /** null when the target's Steam privacy settings hide their game list. */
   hoursInRust: number | null;
   vacBanned: boolean;
