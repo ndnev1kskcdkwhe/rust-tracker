@@ -271,7 +271,7 @@ export default function GeneticsScanPage() {
         <div className="mt-6 flex flex-col gap-4 rounded-2xl border border-black/[.08] bg-white p-6 dark:border-white/[.145] dark:bg-black">
           {errorMessage && <p className="text-sm text-red-600 dark:text-red-400">{errorMessage}</p>}
 
-          {!isCapturing ? (
+          {!isCapturing && (
             <button
               type="button"
               onClick={handleStartCapture}
@@ -279,73 +279,74 @@ export default function GeneticsScanPage() {
             >
               Захопити екран
             </button>
-          ) : (
-            <>
-              <div
-                ref={overlayRef}
-                onMouseDown={handleMouseDown}
-                onMouseMove={handleMouseMove}
-                onMouseUp={handleMouseUp}
-                className="relative w-full cursor-crosshair overflow-hidden rounded-lg border border-black/[.08] dark:border-white/[.145]"
-              >
-                <video ref={videoRef} muted className="block w-full select-none" />
-                {dragRect && (
-                  <div
-                    className="pointer-events-none absolute border-2 border-dashed border-green-500 bg-green-500/20"
-                    style={{ left: dragRect.x, top: dragRect.y, width: dragRect.width, height: dragRect.height }}
-                  />
-                )}
-              </div>
-
-              <p className="text-xs text-zinc-500 dark:text-zinc-500">
-                {calibration
-                  ? "Область для сканування вибрана. Можеш виділити її ще раз, якщо потрібно виправити."
-                  : "Виділи прямокутником рядок «Genetics ...» на відео вище."}
-              </p>
-
-              <div className="flex flex-wrap items-center gap-3">
-                {!isScanning ? (
-                  <button
-                    type="button"
-                    disabled={!calibration}
-                    onClick={handleStartScanning}
-                    className="h-11 rounded-full bg-foreground px-6 text-sm font-medium text-background transition-colors hover:bg-[#383838] disabled:opacity-50 dark:hover:bg-[#ccc]"
-                  >
-                    Почати сканування
-                  </button>
-                ) : (
-                  <button
-                    type="button"
-                    onClick={handleStopScanning}
-                    className="h-11 rounded-full border border-solid border-black/[.08] px-6 text-sm font-medium transition-colors hover:border-transparent hover:bg-black/[.04] dark:border-white/[.145] dark:hover:bg-[#1a1a1a]"
-                  >
-                    Зупинити сканування
-                  </button>
-                )}
-                <button
-                  type="button"
-                  disabled={!calibration || isTestingOcr}
-                  onClick={handleTestOcr}
-                  className="h-11 rounded-full border border-solid border-black/[.08] px-6 text-sm font-medium transition-colors hover:border-transparent hover:bg-black/[.04] disabled:opacity-50 dark:border-white/[.145] dark:hover:bg-[#1a1a1a]"
-                >
-                  {isTestingOcr ? "Перевіряю..." : "Тест OCR зараз"}
-                </button>
-                <button
-                  type="button"
-                  onClick={stopEverything}
-                  className="text-sm text-red-600 hover:underline dark:text-red-400"
-                >
-                  Зупинити захоплення екрана
-                </button>
-              </div>
-
-              {(isScanning || lastOcrText) && (
-                <p className="font-mono text-xs text-zinc-500 dark:text-zinc-500">
-                  Останній OCR-текст: &quot;{lastOcrText || "…"}&quot;
-                </p>
-              )}
-            </>
           )}
+
+          {/* Always mounted (just hidden pre-capture) so videoRef exists before getDisplayMedia resolves. */}
+          <div className={isCapturing ? "flex flex-col gap-4" : "hidden"}>
+            <div
+              ref={overlayRef}
+              onMouseDown={handleMouseDown}
+              onMouseMove={handleMouseMove}
+              onMouseUp={handleMouseUp}
+              className="relative w-full cursor-crosshair overflow-hidden rounded-lg border border-black/[.08] dark:border-white/[.145]"
+            >
+              <video ref={videoRef} autoPlay muted playsInline className="block w-full select-none" />
+              {dragRect && (
+                <div
+                  className="pointer-events-none absolute border-2 border-dashed border-green-500 bg-green-500/20"
+                  style={{ left: dragRect.x, top: dragRect.y, width: dragRect.width, height: dragRect.height }}
+                />
+              )}
+            </div>
+
+            <p className="text-xs text-zinc-500 dark:text-zinc-500">
+              {calibration
+                ? "Область для сканування вибрана. Можеш виділити її ще раз, якщо потрібно виправити."
+                : "Виділи прямокутником рядок «Genetics ...» на відео вище."}
+            </p>
+
+            <div className="flex flex-wrap items-center gap-3">
+              {!isScanning ? (
+                <button
+                  type="button"
+                  disabled={!calibration}
+                  onClick={handleStartScanning}
+                  className="h-11 rounded-full bg-foreground px-6 text-sm font-medium text-background transition-colors hover:bg-[#383838] disabled:opacity-50 dark:hover:bg-[#ccc]"
+                >
+                  Почати сканування
+                </button>
+              ) : (
+                <button
+                  type="button"
+                  onClick={handleStopScanning}
+                  className="h-11 rounded-full border border-solid border-black/[.08] px-6 text-sm font-medium transition-colors hover:border-transparent hover:bg-black/[.04] dark:border-white/[.145] dark:hover:bg-[#1a1a1a]"
+                >
+                  Зупинити сканування
+                </button>
+              )}
+              <button
+                type="button"
+                disabled={!calibration || isTestingOcr}
+                onClick={handleTestOcr}
+                className="h-11 rounded-full border border-solid border-black/[.08] px-6 text-sm font-medium transition-colors hover:border-transparent hover:bg-black/[.04] disabled:opacity-50 dark:border-white/[.145] dark:hover:bg-[#1a1a1a]"
+              >
+                {isTestingOcr ? "Перевіряю..." : "Тест OCR зараз"}
+              </button>
+              <button
+                type="button"
+                onClick={stopEverything}
+                className="text-sm text-red-600 hover:underline dark:text-red-400"
+              >
+                Зупинити захоплення екрана
+              </button>
+            </div>
+
+            {(isScanning || lastOcrText) && (
+              <p className="font-mono text-xs text-zinc-500 dark:text-zinc-500">
+                Останній OCR-текст: &quot;{lastOcrText || "…"}&quot;
+              </p>
+            )}
+          </div>
         </div>
 
         <div className="mt-6 flex flex-col gap-4 rounded-2xl border border-black/[.08] bg-white p-6 dark:border-white/[.145] dark:bg-black">
