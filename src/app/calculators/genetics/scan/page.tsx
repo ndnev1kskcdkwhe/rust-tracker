@@ -4,8 +4,9 @@ import { useEffect, useRef, useState } from "react";
 import Link from "next/link";
 import { useSession } from "next-auth/react";
 import { createWorker, type Worker } from "tesseract.js";
-import { CROPS, CROP_LABELS, type Crop } from "@/lib/calculators/genetics/data";
-import { isValidGenome } from "@/lib/calculators/genetics/genetics";
+import { CROPS, CROP_LABELS, DEFAULT_TARGET_GENOME, type Crop } from "@/lib/calculators/genetics/data";
+import { classifyGenome, isValidGenome, parseGenome } from "@/lib/calculators/genetics/genetics";
+import { findBestArrangement } from "@/lib/calculators/genetics/arrangement";
 import { parseGenesFromOcrText } from "@/lib/calculators/genetics/ocr";
 
 type Rect = { x: number; y: number; width: number; height: number };
@@ -13,6 +14,13 @@ type Rect = { x: number; y: number; width: number; height: number };
 interface QueuedClone {
   id: string;
   genes: string;
+}
+
+interface ResolvedArrangement {
+  centerGenes: string;
+  neighborGenesList: string[];
+  chance: number;
+  expectedAttempts: number;
 }
 
 const SCAN_INTERVAL_MS = 1200;
@@ -40,6 +48,9 @@ export default function GeneticsScanPage() {
   const [crop, setCrop] = useState<Crop>("HEMP");
   const [queue, setQueue] = useState<QueuedClone[]>([]);
   const [isSaving, setIsSaving] = useState(false);
+  const [targetInput, setTargetInput] = useState(DEFAULT_TARGET_GENOME);
+  const [arrangement, setArrangement] = useState<ResolvedArrangement | null>(null);
+  const [arrangementError, setArrangementError] = useState<string | null>(null);
 
   useEffect(() => {
     return () => {
@@ -231,6 +242,32 @@ export default function GeneticsScanPage() {
     setQueue((prev) => prev.filter((item) => item.id !== id));
   }
 
+  function handleFindBestArrangement() {
+    setArrangementError(null);
+    setArrangement(null);
+    const validItems = queue.filter((item) => isValidGenome(item.genes));
+    if (validItems.length === 0) {
+      setArrangementError("Немає жодного коректного розпізнаного клону (6 літер G/Y/H/W/X).");
+      return;
+    }
+    if (!isValidGenome(targetInput)) {
+      setArrangementError("Цільовий геном має бути рівно 6 літер: G, Y, H, W, X.");
+      return;
+    }
+    const pool = validItems.map((item) => parseGenome(item.genes));
+    const result = findBestArrangement(pool, parseGenome(targetInput));
+    if (!result) {
+      setArrangementError("Не вдалося підібрати розстановку.");
+      return;
+    }
+    setArrangement({
+      centerGenes: validItems[result.centerIndex].genes,
+      neighborGenesList: result.neighborIndices.map((i) => validItems[i].genes),
+      chance: result.chance,
+      expectedAttempts: result.expectedAttempts,
+    });
+  }
+
   async function handleSaveAll() {
     setIsSaving(true);
     const valid = queue.filter((item) => isValidGenome(item.genes));
@@ -375,32 +412,101 @@ export default function GeneticsScanPage() {
             </p>
           ) : (
             <div className="flex flex-col gap-2">
-              {queue.map((item) => (
-                <div key={item.id} className="flex items-center gap-3 rounded-xl bg-zinc-100 p-3 dark:bg-zinc-900">
-                  <input
-                    type="text"
-                    value={item.genes}
-                    onChange={(e) => updateQueueGenes(item.id, e.target.value.slice(0, 6))}
-                    className={`w-28 rounded-lg border px-2 py-1 font-mono text-sm ${
-                      isValidGenome(item.genes)
-                        ? "border-black/[.08] dark:border-white/[.145]"
-                        : "border-red-500"
-                    } text-black dark:bg-zinc-800 dark:text-zinc-50`}
-                  />
-                  {!isValidGenome(item.genes) && (
-                    <span className="text-xs text-red-600 dark:text-red-400">невірний геном</span>
-                  )}
-                  <button
-                    type="button"
-                    onClick={() => removeFromQueue(item.id)}
-                    className="ml-auto text-xs text-red-600 hover:underline dark:text-red-400"
-                  >
-                    Видалити
-                  </button>
-                </div>
-              ))}
+              {[...queue]
+                .sort((a, b) => {
+                  const target = isValidGenome(targetInput) ? parseGenome(targetInput) : null;
+                  const order = { target: 0, keep: 1, discard: 2 } as const;
+                  const classA = isValidGenome(a.genes) ? classifyGenome(parseGenome(a.genes), target) : "discard";
+                  const classB = isValidGenome(b.genes) ? classifyGenome(parseGenome(b.genes), target) : "discard";
+                  return order[classA] - order[classB];
+                })
+                .map((item) => (
+                  <div key={item.id} className="flex items-center gap-3 rounded-xl bg-zinc-100 p-3 dark:bg-zinc-900">
+                    <input
+                      type="text"
+                      value={item.genes}
+                      onChange={(e) => updateQueueGenes(item.id, e.target.value.slice(0, 6))}
+                      className={`w-28 rounded-lg border px-2 py-1 font-mono text-sm ${
+                        isValidGenome(item.genes)
+                          ? "border-black/[.08] dark:border-white/[.145]"
+                          : "border-red-500"
+                      } text-black dark:bg-zinc-800 dark:text-zinc-50`}
+                    />
+                    {isValidGenome(item.genes) &&
+                      isValidGenome(targetInput) &&
+                      classifyGenome(parseGenome(item.genes), parseGenome(targetInput)) === "target" && (
+                        <span className="rounded-full bg-green-600 px-2 py-0.5 text-xs font-medium text-white">
+                          Ціль
+                        </span>
+                      )}
+                    {!isValidGenome(item.genes) && (
+                      <span className="text-xs text-red-600 dark:text-red-400">невірний геном</span>
+                    )}
+                    <button
+                      type="button"
+                      onClick={() => removeFromQueue(item.id)}
+                      className="ml-auto text-xs text-red-600 hover:underline dark:text-red-400"
+                    >
+                      Видалити
+                    </button>
+                  </div>
+                ))}
             </div>
           )}
+
+          <div className="flex flex-col gap-3 rounded-xl border border-black/[.08] p-4 dark:border-white/[.145]">
+            <label className="flex flex-col gap-1 text-sm text-zinc-700 dark:text-zinc-300">
+              Цільовий геном
+              <input
+                type="text"
+                value={targetInput}
+                onChange={(e) => setTargetInput(e.target.value.toUpperCase().slice(0, 6))}
+                className="w-40 rounded-lg border border-black/[.08] px-3 py-2 font-mono uppercase text-black dark:border-white/[.145] dark:bg-zinc-900 dark:text-zinc-50"
+              />
+            </label>
+            <button
+              type="button"
+              onClick={handleFindBestArrangement}
+              className="h-11 self-start rounded-full bg-foreground px-6 text-sm font-medium text-background transition-colors hover:bg-[#383838] dark:hover:bg-[#ccc]"
+            >
+              Показати найкращі варіанти схрещування
+            </button>
+
+            {arrangementError && (
+              <p className="text-sm text-red-600 dark:text-red-400">{arrangementError}</p>
+            )}
+
+            {arrangement && (
+              <div className="rounded-xl bg-zinc-100 p-4 text-sm dark:bg-zinc-900">
+                <p className="text-xs text-zinc-500">Центр</p>
+                <p className="font-mono text-black dark:text-zinc-50">{arrangement.centerGenes}</p>
+                <p className="mt-2 text-xs text-zinc-500">Сусіди ({arrangement.neighborGenesList.length}/8)</p>
+                {arrangement.neighborGenesList.length === 0 ? (
+                  <p className="text-zinc-600 dark:text-zinc-400">Не потрібні.</p>
+                ) : (
+                  <ul className="font-mono text-black dark:text-zinc-50">
+                    {arrangement.neighborGenesList.map((g, i) => (
+                      <li key={i}>{g}</li>
+                    ))}
+                  </ul>
+                )}
+                <p className="mt-2 font-medium text-black dark:text-zinc-50">
+                  Шанс за одне схрещування: {(arrangement.chance * 100).toFixed(1)}%
+                </p>
+                {arrangement.chance > 0 && arrangement.chance < 1 && (
+                  <p className="text-zinc-600 dark:text-zinc-400">
+                    ~{arrangement.expectedAttempts}{" "}
+                    {arrangement.expectedAttempts === 1 ? "спроба" : "спроб"} в середньому.
+                  </p>
+                )}
+                {arrangement.chance === 0 && (
+                  <p className="text-red-600 dark:text-red-400">
+                    З розпізнаних клонів цю ціль отримати неможливо.
+                  </p>
+                )}
+              </div>
+            )}
+          </div>
 
           {!isLoggedIn ? (
             <p className="text-sm text-zinc-600 dark:text-zinc-400">

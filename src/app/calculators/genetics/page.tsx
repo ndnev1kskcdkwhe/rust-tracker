@@ -6,6 +6,7 @@ import { useSession } from "next-auth/react";
 import {
   CROPS,
   CROP_LABELS,
+  DEFAULT_TARGET_GENOME,
   GENE_INFO,
   GENOME_LENGTH,
   GOD_CLONES,
@@ -19,9 +20,12 @@ import {
   isValidGenome,
   parseGenome,
   predictCross,
+  type GenomeClassification,
   type SlotOutcome,
 } from "@/lib/calculators/genetics/genetics";
 import { findBestArrangement } from "@/lib/calculators/genetics/arrangement";
+
+const CLASSIFICATION_ORDER: Record<GenomeClassification, number> = { target: 0, keep: 1, discard: 2 };
 
 interface SavedGenome {
   id: string;
@@ -86,7 +90,7 @@ export default function GeneticsCalculatorPage() {
 
   const [centerInput, setCenterInput] = useState("GGGYYY");
   const [neighborInput, setNeighborInput] = useState("WWWWWW");
-  const [targetInput, setTargetInput] = useState("GGGYYY");
+  const [targetInput, setTargetInput] = useState(DEFAULT_TARGET_GENOME);
 
   const [crop, setCrop] = useState<Crop>("HEMP");
   const [newGenomeInput, setNewGenomeInput] = useState("");
@@ -120,6 +124,14 @@ export default function GeneticsCalculatorPage() {
     () => (isLoggedIn ? (savedGenomes ?? []).filter((g) => g.crop === crop) : []),
     [isLoggedIn, savedGenomes, crop]
   );
+
+  const sortedCropGenomes = useMemo(() => {
+    return [...cropGenomes].sort((a, b) => {
+      const classA = classifyGenome(parseGenome(a.genes), target);
+      const classB = classifyGenome(parseGenome(b.genes), target);
+      return CLASSIFICATION_ORDER[classA] - CLASSIFICATION_ORDER[classB];
+    });
+  }, [cropGenomes, target]);
 
   const arrangement = useMemo(() => {
     if (!target || cropGenomes.length === 0) {
@@ -320,7 +332,7 @@ export default function GeneticsCalculatorPage() {
                     Ще немає збережених клонів для цієї культури.
                   </p>
                 )}
-                {cropGenomes.map((g) => {
+                {sortedCropGenomes.map((g) => {
                   const genome = parseGenome(g.genes);
                   const classification = classifyGenome(genome, target);
                   const badgeClass =

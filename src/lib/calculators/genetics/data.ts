@@ -77,8 +77,12 @@ export interface GodClone {
   purpose: string;
 }
 
+/** Default target genome for this site — preselected everywhere a target is needed. */
+export const DEFAULT_TARGET_GENOME = "YYYGGG";
+
 /** "God clone" target templates, as named on rustbreeder.com/guide and irust.ru/genetic. */
 export const GOD_CLONES: GodClone[] = [
+  { genes: "YYYGGG", label: "Твоя ціль (пріоритет)", purpose: "Обрано як основний цільовий ген для цього сайту" },
   { genes: "GGGYYY", label: "Золотий стандарт (GOD clone)", purpose: "Найкраще співвідношення швидкості й урожаю" },
   { genes: "GGYYYY", label: "GOD clone (менше клонування)", purpose: "Рідше треба перезаклонювати" },
   { genes: "GGGGYY", label: "Турбо-ріст", purpose: "Дуже швидкий ріст, багато циклів збору за короткий час" },
