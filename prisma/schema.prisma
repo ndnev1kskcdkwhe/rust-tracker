@@ -72,3 +72,12 @@ model PlantGenome {
 
   @@index([userId, crop])
 }
+
+/// Cached merged player profile (Steam + BattleMetrics, when available) keyed by SteamID64.
+/// `data` holds the serialized PlayerProfile DTO; `fetchedAt` drives the 15-60 min TTL check
+/// in the app layer so repeated searches for the same player don't hit external APIs every time.
+model PlayerCache {
+  steamId   String   @id
+  data      Json
+  fetchedAt DateTime @default(now())
+}

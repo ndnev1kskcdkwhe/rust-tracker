@@ -42,6 +42,8 @@ cp .env.example .env
 - `DATABASE_URL` — рядок підключення до Postgres
 - `NEXTAUTH_SECRET` — будь-який випадковий рядок (`openssl rand -base64 32`)
 - `NEXTAUTH_URL` — `http://localhost:3000` для локальної розробки
+- `STEAM_API_KEY` — [steamcommunity.com/dev/apikey](https://steamcommunity.com/dev/apikey), потрібен для Фази 3
+- `BATTLEMETRICS_API_KEY` — наразі не використовується (див. розділ про Фазу 3 нижче)
 
 ### 4. Прогнати міграції та згенерувати Prisma Client
 
@@ -84,6 +86,7 @@ npm run dev
 - `User` — email, хеш пароля (bcrypt), ім'я
 - `Subscription` — рівень (`FREE`/`PRO`), статус, поля під Stripe (заповнюються у Фазі 5)
 - `PlantGenome` — збережені клони рослин (культура, 6-літерний геном, нотатка) для калькулятора генетики (Фаза 2)
+- `PlayerCache` — кеш об'єднаного профілю гравця (Steam + BattleMetrics, коли буде доступний), TTL 30 хв (Фаза 3)
 
 Схема: [prisma/schema.prisma](./prisma/schema.prisma)
 
@@ -97,11 +100,25 @@ npm run dev
 **User Interface Scale = 1 (максимум)** і мову інтерфейсу — English. Розпізнавання
 калібрується під ці параметри.
 
+## Пошук гравців (Фаза 3)
+
+`/players` — пошук за SteamID64, посиланням на профіль (steamcommunity.com/profiles/... або
+/id/...) чи vanity-ім'ям. Дані зі Steam Web API (профіль, аватар, VAC/game/community-бани,
+години в Rust — `null`, якщо власник приховав ігрову бібліотеку в приватності) кешуються в
+`PlayerCache` на 30 хв, щоб повторний пошук того самого гравця не бив по Steam API щоразу.
+
+**BattleMetrics наразі не підключено.** Перевірено живими запитами (2026-07-30): їхній API
+тепер вимагає платної підписки для будь-яких запитів, включно з неавтентифікованими —
+навіть базовий пошук серверів повертає `403 Forbidden: "A subscription is required to use
+the API"`. DTO (`src/lib/players/types.ts`) вже має заготовлену секцію `battlemetrics` для
+історії імен/сесій/серверів — щойно буде підписка, лишиться написати клієнт і заповнити цю
+секцію, без переробки решти коду чи UI.
+
 ## Статус фаз
 
 - [x] Фаза 1 — каркас (Next.js, Prisma, Postgres, auth)
 - [x] Фаза 2 — калькулятори (рейд, генетика рослин зі скануванням екрана)
-- [ ] Фаза 3 — пошук гравців (Steam + BattleMetrics)
+- [x] Фаза 3 — пошук гравців (тільки Steam; BattleMetrics заблокований підпискою з їхнього боку)
 - [ ] Фаза 4 — сервери і мапи (BattleMetrics + RustMaps)
 - [ ] Фаза 5 — підписки (Stripe)
 - [ ] Фаза 6 — алерти (Rust+ Companion API)
