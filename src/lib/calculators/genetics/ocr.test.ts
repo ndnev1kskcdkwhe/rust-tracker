@@ -29,6 +29,29 @@ describe("parseGenesFromOcrText", () => {
     const text = "Genetics H · Y · Y · Y · Y · G\nResiliences: Water 15%";
     expect(parseGenesFromOcrText(text)).toBe("HYYYYG");
   });
+
+  it("corrects '6' misread as 'G' (real Tesseract output seen from the game)", () => {
+    const text = "Genetics W W H 6 H W Resiliences: Water 15%";
+    expect(parseGenesFromOcrText(text)).toBe("WWHGHW");
+  });
+
+  it("handles a wide capture with no real newlines between UI sections (regression)", () => {
+    // Real OCR output when the calibration rectangle covers the whole tooltip panel,
+    // not just the Genetics row — Tesseract flattens it into one line.
+    const text =
+      'as - Ac ipping of a hemp plant. *- INFORMATION ACTIONS Harvests 1 Genetics W W H 6 H W ' +
+      'Resiliences: Water 15% Light 10% Ground M10% Temperature 110 % + orp SPLITTING ' +
+      '"SET AMOUNT & DRAG ICON " x1';
+    expect(parseGenesFromOcrText(text)).toBe("WWHGHW");
+  });
+
+  it("falls back to treating the whole input as the gene sequence when no label is present", () => {
+    expect(parseGenesFromOcrText("hyyyyg")).toBe("HYYYYG");
+  });
+
+  it("does not fall back to whole-input mode if there's extra text but no label", () => {
+    expect(parseGenesFromOcrText("hyyyyg extra")).toBeNull();
+  });
 });
 
 describe("parseCropFromOcrText", () => {

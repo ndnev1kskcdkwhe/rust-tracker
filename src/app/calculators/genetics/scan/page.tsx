@@ -186,7 +186,7 @@ export default function GeneticsScanPage() {
     } = await worker.recognize(canvas);
     setLastOcrText(text.trim());
 
-    const genes = parseGenesFromOcrText(`Genetics ${text}`);
+    const genes = parseGenesFromOcrText(text);
     if (genes && genes !== lastGenesRef.current) {
       lastGenesRef.current = genes;
       setQueue((prev) => [{ id: `${Date.now()}-${Math.random()}`, genes }, ...prev]);
