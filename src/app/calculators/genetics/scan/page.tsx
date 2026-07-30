@@ -181,13 +181,16 @@ export default function GeneticsScanPage() {
       return null;
     }
     const worker = await ensureWorker();
-    await worker.setParameters({ tessedit_pageseg_mode: PSM.SPARSE_TEXT });
-    const { data } = await worker.recognize(canvas, {}, { blocks: true });
+    // AUTO (Tesseract's default full-page segmentation) rather than SPARSE_TEXT: our target
+    // is a structured multi-line UI panel over the 3D scene, not scattered isolated words —
+    // closer to "a page with text blocks" than "random signage in a photo."
+    await worker.setParameters({ tessedit_pageseg_mode: PSM.AUTO });
+    const { data } = await worker.recognize(canvas, {}, { blocks: true, text: true });
 
     for (const block of data.blocks ?? []) {
-      for (const paragraph of block.paragraphs) {
-        for (const line of paragraph.lines) {
-          for (const word of line.words) {
+      for (const paragraph of block.paragraphs ?? []) {
+        for (const line of paragraph.lines ?? []) {
+          for (const word of line.words ?? []) {
             if (word.text.toLowerCase().replace(/[^a-z]/g, "").includes("genetic")) {
               const wordWidth = word.bbox.x1 - word.bbox.x0;
               const wordHeight = word.bbox.y1 - word.bbox.y0;
@@ -202,6 +205,17 @@ export default function GeneticsScanPage() {
         }
       }
     }
+
+    // Diagnostic fallback so a failed locate still tells us something useful: is "genetics"
+    // present in the plain recognized text at all (meaning the word/bbox hierarchy just
+    // didn't carry it), or did OCR miss it entirely at this page-segmentation mode?
+    const plainText = (data.text ?? "").trim();
+    const foundInPlainText = plainText.toLowerCase().includes("genetic");
+    setLastOcrText(
+      foundInPlainText
+        ? `Слово "Genetics" є в тексті, але не вдалось визначити позицію. Розпізнано: "${plainText.slice(0, 200)}"`
+        : `Не знайшов "Genetics" у розпізнаному тексті. Розпізнано: "${plainText.slice(0, 200)}"`
+    );
     return null;
   }
 
@@ -210,9 +224,6 @@ export default function GeneticsScanPage() {
       setLastOcrText("Шукаю область з генетикою на екрані...");
       const region = await locateGeneticsRegion();
       if (!region) {
-        setLastOcrText(
-          "Не знайшов слово \"Genetics\" на екрані. Наведи курсор на клон у грі так, щоб підказка була видима, і спробуй ще раз."
-        );
         return;
       }
       discoveredRegionRef.current = region;
