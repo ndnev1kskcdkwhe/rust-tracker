@@ -111,7 +111,7 @@ export default async function ServerDetailPage({ params }: { params: Promise<{ a
 
             <div className="flex flex-col gap-1.5">
               <p className="text-xs uppercase tracking-wide text-zinc-500">Адреса</p>
-              <CopyableAddress label="Game Port" address={server.connectAddr} />
+              <CopyableAddress label="Game Port" address={server.connectAddr} commandPrefix="client.connect" />
               <CopyableAddress label="Query Port" address={server.queryAddr} />
             </div>
 
