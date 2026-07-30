@@ -128,21 +128,33 @@ export default function RaidCalculatorPage() {
         </p>
 
         <div className="mt-6 flex flex-col gap-4 rounded-2xl border border-black/[.08] bg-white p-6 dark:border-white/[.145] dark:bg-black">
-          <fieldset className="flex flex-col gap-1">
+          <fieldset className="flex flex-col gap-2">
             <legend className="text-sm font-medium text-zinc-700 dark:text-zinc-300">Що ламаємо</legend>
-            <div className="flex gap-4 text-sm">
-              <label className="flex items-center gap-2">
-                <input
-                  type="radio"
-                  checked={kind === "generic"}
-                  onChange={() => setKind("generic")}
-                />
+            <div className="grid grid-cols-2 gap-2 rounded-full bg-zinc-100 p-1 dark:bg-zinc-900">
+              <button
+                type="button"
+                onClick={() => setKind("generic")}
+                aria-pressed={kind === "generic"}
+                className={`h-10 rounded-full text-sm font-medium transition-colors ${
+                  kind === "generic"
+                    ? "bg-foreground text-background"
+                    : "text-zinc-600 hover:bg-black/[.04] dark:text-zinc-400 dark:hover:bg-white/[.06]"
+                }`}
+              >
                 Стіна / фундамент / підлога
-              </label>
-              <label className="flex items-center gap-2">
-                <input type="radio" checked={kind === "door"} onChange={() => setKind("door")} />
+              </button>
+              <button
+                type="button"
+                onClick={() => setKind("door")}
+                aria-pressed={kind === "door"}
+                className={`h-10 rounded-full text-sm font-medium transition-colors ${
+                  kind === "door"
+                    ? "bg-foreground text-background"
+                    : "text-zinc-600 hover:bg-black/[.04] dark:text-zinc-400 dark:hover:bg-white/[.06]"
+                }`}
+              >
                 Двері
-              </label>
+              </button>
             </div>
           </fieldset>
 
