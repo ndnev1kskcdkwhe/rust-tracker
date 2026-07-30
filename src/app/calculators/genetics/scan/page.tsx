@@ -3,7 +3,7 @@
 import { useEffect, useMemo, useRef, useState } from "react";
 import Link from "next/link";
 import { useSession } from "next-auth/react";
-import { PSM, createWorker, type Page, type Word, type Worker } from "tesseract.js";
+import { PSM, createWorker, type Line, type Page, type Word, type Worker } from "tesseract.js";
 import { CROPS, CROP_LABELS, DEFAULT_TARGET_GENOME, type Crop } from "@/lib/calculators/genetics/data";
 import { greenGeneCount, parseGenome } from "@/lib/calculators/genetics/genetics";
 import { findBestArrangement } from "@/lib/calculators/genetics/arrangement";
@@ -168,13 +168,16 @@ export default function GeneticsScanPage() {
     return canvas;
   }
 
-  function findWordMatching(data: Page, predicate: (normalizedText: string) => boolean): Word | null {
+  function findWordMatching(
+    data: Page,
+    predicate: (normalizedText: string) => boolean
+  ): { word: Word; line: Line } | null {
     for (const block of data.blocks ?? []) {
       for (const paragraph of block.paragraphs ?? []) {
         for (const line of paragraph.lines ?? []) {
           for (const word of line.words ?? []) {
             if (predicate(word.text.toLowerCase().replace(/[^a-z]/g, ""))) {
-              return word;
+              return { word, line };
             }
           }
         }
@@ -210,26 +213,33 @@ export default function GeneticsScanPage() {
     await worker.setParameters({ tessedit_pageseg_mode: PSM.AUTO });
     const { data } = await worker.recognize(canvas, {}, { blocks: true, text: true });
 
-    const geneticsWord = findWordMatching(data, (t) => t.includes("genetic"));
-    if (geneticsWord) {
-      const wordWidth = geneticsWord.bbox.x1 - geneticsWord.bbox.x0;
-      const wordHeight = geneticsWord.bbox.y1 - geneticsWord.bbox.y0;
+    const geneticsMatch = findWordMatching(data, (t) => t.includes("genetic"));
+    if (geneticsMatch) {
+      const { word, line } = geneticsMatch;
+      const wordHeight = word.bbox.y1 - word.bbox.y0;
+      const lineWidth = line.bbox.x1 - line.bbox.x0;
       return {
-        x: geneticsWord.bbox.x0,
-        y: geneticsWord.bbox.y0 - wordHeight * 0.4,
-        width: wordWidth * 5,
+        x: word.bbox.x0,
+        y: word.bbox.y0 - wordHeight * 0.4,
+        // Extend to the right edge of the whole line (not just the "Genetics" word itself),
+        // since the gene letters are separate words following it on the same line.
+        width: Math.max(lineWidth - (word.bbox.x0 - line.bbox.x0), (word.bbox.x1 - word.bbox.x0) * 5),
         height: wordHeight * 1.8,
       };
     }
 
-    const clippingWord = findWordMatching(data, (t) => t.includes("clipping") || t.includes("cutting"));
-    if (clippingWord) {
-      const anchorWidth = clippingWord.bbox.x1 - clippingWord.bbox.x0;
-      const anchorHeight = clippingWord.bbox.y1 - clippingWord.bbox.y0;
+    const clippingMatch = findWordMatching(data, (t) => t.includes("clipping") || t.includes("cutting"));
+    if (clippingMatch) {
+      const { word, line } = clippingMatch;
+      const anchorHeight = word.bbox.y1 - word.bbox.y0;
+      const lineWidth = line.bbox.x1 - line.bbox.x0;
       return {
-        x: Math.max(0, clippingWord.bbox.x0 - anchorWidth * 0.1),
-        y: clippingWord.bbox.y1,
-        width: anchorWidth * 1.6,
+        x: Math.max(0, line.bbox.x0 - anchorHeight),
+        y: word.bbox.y1,
+        // The "Genetics"/"Harvests"/"Resiliences" rows sit in the same info panel as this
+        // description line — use the whole line's width (not just the "clipping" word) plus
+        // margin, since label+value pairs on those rows can run wider than the description.
+        width: lineWidth * 1.3,
         height: anchorHeight * 12,
       };
     }
