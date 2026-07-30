@@ -7,15 +7,22 @@
 
 - Next.js 16 (App Router) + TypeScript + Tailwind CSS 4
 - Prisma 7 (`@prisma/adapter-pg`) + PostgreSQL
-- Auth.js / NextAuth v5 (Credentials: email + пароль)
+- Auth.js / NextAuth v5 (Credentials: email + пароль, і Steam через OpenID 2.0)
 
 ## Запуск локально
 
 ### 1. Встановити залежності
 
 ```bash
-npm install
+npm install --legacy-peer-deps
 ```
+
+**Чому `--legacy-peer-deps`:** пакет `authjs-steam-provider` (провайдер входу через Steam)
+задекларував peer-діапазон `next@">=13 <16"` — виданий до релізу Next.js 16, тож формально
+конфліктує з нашою версією. Сам код пакета використовує лише стандартні `Request`/`fetch`/
+`crypto` API без специфічних для версії Next.js речей (перевірено читанням скомпільованого
+джерела перед підключенням), тому конфлікт — про застарілу заявлену версію, а не про реальну
+несумісність.
 
 ### 2. Підняти PostgreSQL
 
