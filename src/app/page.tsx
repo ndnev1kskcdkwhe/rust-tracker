@@ -23,7 +23,7 @@ export default async function Home() {
           </Link>
           {session?.user ? (
             <>
-              <span className="text-zinc-500">{session.user.email}</span>
+              <span className="text-zinc-500">{session.user.name || session.user.email}</span>
               <form
                 action={async () => {
                   "use server";
