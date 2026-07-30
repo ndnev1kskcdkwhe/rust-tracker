@@ -1,15 +1,18 @@
 "use client";
 
 import { useState } from "react";
-import { useRouter } from "next/navigation";
+import { useRouter, useSearchParams } from "next/navigation";
 import Link from "next/link";
 import { signIn } from "next-auth/react";
 
 export default function LoginPage() {
   const router = useRouter();
+  const searchParams = useSearchParams();
   const [email, setEmail] = useState("");
   const [password, setPassword] = useState("");
-  const [error, setError] = useState<string | null>(null);
+  const [error, setError] = useState<string | null>(
+    searchParams.get("error") === "SteamAuth" ? "Не вдалося увійти через Steam. Спробуй ще раз." : null
+  );
   const [isSubmitting, setIsSubmitting] = useState(false);
 
   const handleSubmit = async (event: React.FormEvent) => {
@@ -80,13 +83,12 @@ export default function LoginPage() {
           <div className="h-px flex-1 bg-black/[.08] dark:bg-white/[.145]" />
         </div>
 
-        <button
-          type="button"
-          onClick={() => signIn("steam")}
+        <Link
+          href="/api/auth/steam/login"
           className="flex h-11 items-center justify-center gap-2 rounded-full bg-[#1b2838] px-6 text-sm font-medium text-white transition-colors hover:bg-[#2a3f5a]"
         >
           Увійти через Steam
-        </button>
+        </Link>
 
         <p className="text-center text-sm text-zinc-600 dark:text-zinc-400">
           Немає акаунта?{" "}

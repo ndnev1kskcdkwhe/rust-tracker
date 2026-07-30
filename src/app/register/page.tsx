@@ -105,13 +105,12 @@ export default function RegisterPage() {
           <div className="h-px flex-1 bg-black/[.08] dark:bg-white/[.145]" />
         </div>
 
-        <button
-          type="button"
-          onClick={() => signIn("steam")}
+        <Link
+          href="/api/auth/steam/login"
           className="flex h-11 items-center justify-center gap-2 rounded-full bg-[#1b2838] px-6 text-sm font-medium text-white transition-colors hover:bg-[#2a3f5a]"
         >
           Зареєструватися через Steam
-        </button>
+        </Link>
 
         <p className="text-center text-sm text-zinc-600 dark:text-zinc-400">
           Вже є акаунт?{" "}
