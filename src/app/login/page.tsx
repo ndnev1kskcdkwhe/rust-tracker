@@ -74,6 +74,20 @@ export default function LoginPage() {
           {isSubmitting ? "Вхід..." : "Увійти"}
         </button>
 
+        <div className="flex items-center gap-3 text-xs text-zinc-400 dark:text-zinc-500">
+          <div className="h-px flex-1 bg-black/[.08] dark:bg-white/[.145]" />
+          або
+          <div className="h-px flex-1 bg-black/[.08] dark:bg-white/[.145]" />
+        </div>
+
+        <button
+          type="button"
+          onClick={() => signIn("steam")}
+          className="flex h-11 items-center justify-center gap-2 rounded-full bg-[#1b2838] px-6 text-sm font-medium text-white transition-colors hover:bg-[#2a3f5a]"
+        >
+          Увійти через Steam
+        </button>
+
         <p className="text-center text-sm text-zinc-600 dark:text-zinc-400">
           Немає акаунта?{" "}
           <Link href="/register" className="font-medium text-black dark:text-zinc-50">

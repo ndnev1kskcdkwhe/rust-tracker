@@ -15,8 +15,12 @@ datasource db {
 model User {
   id           String        @id @default(cuid())
   email        String        @unique
-  passwordHash String
+  /// Null for Steam-only accounts (no password set — they authenticate via Steam OpenID).
+  passwordHash String?
   name         String?
+  avatarUrl    String?
+  /// SteamID64, set when this account was created/linked via "Sign in with Steam".
+  steamId      String?       @unique
   createdAt    DateTime      @default(now())
   updatedAt    DateTime      @updatedAt
   subscription Subscription?
