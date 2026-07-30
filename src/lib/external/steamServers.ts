@@ -13,7 +13,7 @@
  *   per-server, useful tag found is `born<unix-seconds>` (map generation time = last wipe).
  */
 
-const RUST_APP_ID = 252490;
+export const RUST_APP_ID = 252490;
 
 function getApiKey(): string {
   const key = process.env.STEAM_API_KEY;
@@ -51,7 +51,11 @@ function parseGametype(gametype: string): { wipedAt: string | null; gameMode: st
 }
 
 export interface RustServer {
-  /** "ip:port" — the address to actually connect to (steam://connect/{connectAddr}). */
+  /** "ip:port" — the address to actually connect to. Note: `steam://connect/{connectAddr}`
+   * alone is unreliable — Steam sometimes can't resolve which app owns the server and errors
+   * with "AppID specified by the server is incorrect". Use
+   * `steam://run/{RUST_APP_ID}//+connect%20{connectAddr}` instead, which explicitly tells
+   * Steam which game to launch/join with. */
   connectAddr: string;
   /** "ip:port" — Steam's master-list query address (the raw `addr` field). Used to re-look up
    * this exact server (`getServerByAddr`) and as the target for a raw A2S_RULES query. */

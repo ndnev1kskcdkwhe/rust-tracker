@@ -1,6 +1,7 @@
 import Link from "next/link";
 import Image from "next/image";
 import { getServerDetail } from "@/lib/servers/getServerDetail";
+import { RUST_APP_ID } from "@/lib/external/steamServers";
 import { getMapPreview } from "@/lib/maps/getMapPreview";
 import { CopyableAddress } from "./ServerActions";
 
@@ -103,7 +104,7 @@ export default async function ServerDetailPage({ params }: { params: Promise<{ a
             </div>
 
             <a
-              href={`steam://connect/${server.connectAddr}`}
+              href={`steam://run/${RUST_APP_ID}//+connect%20${server.connectAddr}`}
               className="mt-2 flex h-11 items-center justify-center rounded-full bg-orange-600 px-6 text-sm font-medium text-white transition-colors hover:bg-orange-500"
             >
               Підключитись
