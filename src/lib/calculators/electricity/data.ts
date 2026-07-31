@@ -121,8 +121,18 @@ export const BATTERIES: Battery[] = [
  * why the naive "battery → splitter → 3 splitters → 9 furnaces" shape is not automatically
  * the cheapest one.
  *
- * NOT yet verified in game: whether the division rounds down and drops the remainder.
- * Anything that depends on it must be checked before shipping.
+ * The used-outputs rule itself is confirmed twice over: the item page states it, and the
+ * project owner reports the same from play — 30 rW to two turrets gives 15 each, to three
+ * gives 10 each.
+ *
+ * STILL OPEN, and narrower than it first looked: both of those divide evenly, so they say
+ * nothing about a remainder. Feeding 10 rW to three outputs could give 3.33 each, or floor to
+ * 3 and lose 1 rW, or hand 4/3/3. It matters because thresholds are hard: an Auto Turret needs
+ * a full 10 rW to switch on, so a leg carrying 9.67 powers nothing, and a generator that
+ * assumes exact division would emit circuits that look right and fail in game.
+ *
+ * To settle it: wire a source to a splitter with three Counters on the outputs (a Counter
+ * displays the power it receives) and feed it an amount that does not divide by three.
  */
 export const SPLITTER_OUTPUTS = 3;
 
