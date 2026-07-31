@@ -4,6 +4,7 @@ import { auth } from "@/auth";
 import { verifySteamCallback } from "@/lib/auth/steamOpenId";
 import { getBaseUrl } from "@/lib/auth/baseUrl";
 import { getPlayerSummary } from "@/lib/external/steam";
+import { steamPlaceholderEmail } from "@/lib/account/placeholderEmail";
 import { prisma } from "@/lib/prisma";
 
 const SESSION_COOKIE_NAME = "authjs.session-token";
@@ -56,7 +57,7 @@ export async function GET(request: Request) {
     },
     create: {
       steamId,
-      email: `${steamId}@steamcommunity.com`,
+      email: steamPlaceholderEmail(steamId),
       name: profile?.name,
       avatarUrl: profile?.avatarUrl,
       subscription: { create: {} },

@@ -494,6 +494,11 @@ body::after {
     background: var(--bad-dim);
     color: #fecaca;
   }
+  .note-ok {
+    border: 1px solid rgba(74, 222, 128, 0.28);
+    background: var(--ok-dim);
+    color: #bbf7d0;
+  }
 
   .dot {
     width: 0.45rem;

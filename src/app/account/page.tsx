@@ -4,7 +4,9 @@ import { redirect } from "next/navigation";
 import { auth } from "@/auth";
 import { prisma } from "@/lib/prisma";
 import { getPlayerProfile } from "@/lib/players/getPlayerProfile";
+import { hasPlaceholderEmail } from "@/lib/account/placeholderEmail";
 import { SteamIcon } from "../SteamIcon";
+import { LinkEmailForm } from "./LinkEmailForm";
 
 const ERROR_MESSAGES: Record<string, string> = {
   SteamLink: "Не вдалося прив'язати Steam. Спробуй ще раз.",
@@ -46,6 +48,7 @@ export default async function AccountPage({
   ]);
 
   const steamProfile = user.steamId ? await getPlayerProfile(user.steamId) : null;
+  const emailMissing = hasPlaceholderEmail(user);
 
   return (
     <div className="page">
@@ -65,17 +68,15 @@ export default async function AccountPage({
               </p>
               <p className="kv">
                 <span className="faint">Email</span>
-                <span className="truncate">
-                  {user.steamId && user.email.endsWith("@steamcommunity.com")
-                    ? "не прив'язано"
-                    : user.email}
-                </span>
+                <span className="truncate">{emailMissing ? "не прив'язано" : user.email}</span>
               </p>
               <p className="kv">
                 <span className="faint">У нас з</span>
                 <span>{formatDate(user.createdAt)}</span>
               </p>
             </div>
+
+            {emailMissing && <LinkEmailForm />}
           </div>
 
           {/* Steam link status */}
