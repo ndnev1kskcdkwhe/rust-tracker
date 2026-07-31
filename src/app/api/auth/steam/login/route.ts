@@ -1,6 +1,7 @@
 import { NextResponse } from "next/server";
 import { auth } from "@/auth";
 import { buildSteamLoginUrl } from "@/lib/auth/steamOpenId";
+import { getBaseUrl } from "@/lib/auth/baseUrl";
 
 /** `?mode=link` — prompts an already-logged-in (email/password) account to link a Steam
  * account instead of logging in as a separate one. The mode round-trips through Steam's
@@ -8,7 +9,7 @@ import { buildSteamLoginUrl } from "@/lib/auth/steamOpenId";
  * openid.* params, it doesn't strip existing ones), so the callback route can tell which
  * flow this is. */
 export async function GET(request: Request) {
-  const baseUrl = process.env.NEXTAUTH_URL ?? "http://localhost:3000";
+  const baseUrl = getBaseUrl(request);
   const mode = new URL(request.url).searchParams.get("mode");
 
   if (mode === "link") {

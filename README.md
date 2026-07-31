@@ -194,6 +194,13 @@ next build`, і кожна частина потрібна саме на хос�
 
 Локально `DIRECT_URL` не потрібен — `prisma.config.ts` відкочується на `DATABASE_URL`.
 
+Це не теоретична пересторога: `migrate deploy` через pooled-URL один раз відпрацював успішно,
+але лишив по собі *завислий* advisory-лок — pooler перевикористовує серверні з'єднання, тож
+session-рівневий лок залишився висіти на чужому бекенді (`application_name = pgbouncer`,
+`state = idle`) і заблокував усі наступні міграції з помилкою `Timed out trying to acquire a
+postgres advisory lock`. Лікується `pg_terminate_backend(<pid>)` для того з'єднання, але
+простіше просто не ходити міграціями через пулер.
+
 **Змінні середовища у Vercel** (Project Settings → Environment Variables): `DATABASE_URL`,
 `DIRECT_URL`, `AUTH_SECRET`, `NEXTAUTH_URL` (адреса живого сайту), `STEAM_API_KEY`,
 `RUSTMAPS_API_KEY`. Це окреме від локального `.env` місце — новий ключ треба додавати в обидва.

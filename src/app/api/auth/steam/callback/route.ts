@@ -2,6 +2,7 @@ import { NextResponse } from "next/server";
 import { encode } from "next-auth/jwt";
 import { auth } from "@/auth";
 import { verifySteamCallback } from "@/lib/auth/steamOpenId";
+import { getBaseUrl } from "@/lib/auth/baseUrl";
 import { getPlayerSummary } from "@/lib/external/steam";
 import { prisma } from "@/lib/prisma";
 
@@ -9,7 +10,7 @@ const SESSION_COOKIE_NAME = "authjs.session-token";
 
 export async function GET(request: Request) {
   const url = new URL(request.url);
-  const baseUrl = process.env.NEXTAUTH_URL ?? "http://localhost:3000";
+  const baseUrl = getBaseUrl(request);
   const isLinking = url.searchParams.get("mode") === "link";
   const errorRedirect = isLinking ? `${baseUrl}/account?error=SteamLink` : `${baseUrl}/login?error=SteamAuth`;
 

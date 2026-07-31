@@ -9,11 +9,14 @@ export default defineConfig({
     path: "prisma/migrations",
   },
   datasource: {
-    url: process.env["DATABASE_URL"],
-    // Migrations need a direct connection: managed Postgres providers (Neon, Supabase) hand
-    // out a pooled URL for app queries, but that pooler runs in transaction mode, which can't
-    // hold the session-level advisory locks and DDL transactions Prisma Migrate relies on.
-    // Falls back to DATABASE_URL for local dev, where there's no pooler in front of the DB.
-    directUrl: process.env["DIRECT_URL"] ?? process.env["DATABASE_URL"],
+    // This file configures the Prisma CLI only — migrations. The running app never reads it;
+    // it builds its own pool from DATABASE_URL in src/lib/prisma.ts. So this URL is
+    // specifically the migration connection, and prefers a direct (non-pooled) one:
+    // managed providers (Neon, Supabase) put PgBouncer in transaction mode behind their
+    // pooled URL, which can't hold the session-level advisory locks and DDL transactions
+    // Prisma Migrate relies on. Falls back to DATABASE_URL locally, where there's no pooler.
+    // (Note: `directUrl` is not a valid key here in Prisma 7 — the split lives in the two
+    // separate env vars instead.)
+    url: process.env["DIRECT_URL"] ?? process.env["DATABASE_URL"],
   },
 });
