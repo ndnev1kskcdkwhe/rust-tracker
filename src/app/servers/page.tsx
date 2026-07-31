@@ -17,6 +17,16 @@ type SearchResult =
 
 const DEBOUNCE_MS = 300;
 
+/** Fill level drives the bar colour: near-empty and completely rammed are both
+ * worth spotting at a glance when scanning a long list. */
+function fillTone(players: number, max: number): string {
+  if (max <= 0) return "";
+  const ratio = players / max;
+  if (ratio >= 0.95) return "fill-full";
+  if (ratio >= 0.5) return "fill-busy";
+  return "";
+}
+
 export default function ServersPage() {
   const { dict } = useTranslation();
   const [query, setQuery] = useState("");
@@ -31,16 +41,34 @@ export default function ServersPage() {
 
     const thisRequestId = ++requestIdRef.current;
     const timer = setTimeout(async () => {
-      const res = await fetch(`/api/servers?q=${encodeURIComponent(trimmed)}`);
-      const data = await res.json();
-      if (thisRequestId !== requestIdRef.current) {
-        return; // a newer keystroke already superseded this request
+      // Everything below is guarded: a failed request (or a 500 with an empty body, which
+      // makes res.json() throw) must still resolve into an error state. Otherwise the row
+      // stays on "loading" forever, since isLoading is derived from result.query.
+      try {
+        const res = await fetch(`/api/servers?q=${encodeURIComponent(trimmed)}`);
+        const data = await res.json().catch(() => ({}));
+        if (thisRequestId !== requestIdRef.current) {
+          return; // a newer keystroke already superseded this request
+        }
+        if (!res.ok) {
+          setResult({
+            query: trimmed,
+            status: "error",
+            message: data.error ?? "Сервіс пошуку зараз недоступний. Спробуй ще раз.",
+          });
+          return;
+        }
+        setResult({ query: trimmed, status: "ready", servers: data.servers ?? [] });
+      } catch {
+        if (thisRequestId !== requestIdRef.current) {
+          return;
+        }
+        setResult({
+          query: trimmed,
+          status: "error",
+          message: "Не вдалося зв'язатися з сервером. Перевір з'єднання.",
+        });
       }
-      if (!res.ok) {
-        setResult({ query: trimmed, status: "error", message: data.error ?? dict.servers.empty });
-        return;
-      }
-      setResult({ query: trimmed, status: "ready", servers: data.servers });
     }, DEBOUNCE_MS);
 
     return () => clearTimeout(timer);
@@ -50,48 +78,68 @@ export default function ServersPage() {
   const isLoading = trimmedQuery !== "" && result?.query !== trimmedQuery;
 
   return (
-    <div className="flex flex-1 flex-col items-center bg-zinc-50 px-6 py-16 font-sans dark:bg-black">
-      <div className="w-full max-w-2xl">
-        <Link href="/" className="text-sm text-zinc-600 dark:text-zinc-400">
-          {dict.servers.backHome}
-        </Link>
-        <h1 className="mt-4 text-2xl font-semibold text-black dark:text-zinc-50">{dict.servers.title}</h1>
-        <p className="mt-1 text-sm text-zinc-600 dark:text-zinc-400">{dict.servers.subtitle}</p>
+    <div className="page">
+      <div className="shell">
+        {/* No in-page "home" link: the floating home pill in the layout already covers it,
+            and two of them in one viewport read as a mistake. */}
+        <h1 className="page-title rise">{dict.servers.title}</h1>
+        <p className="page-lede rise" style={{ ["--d" as string]: "60ms" }}>
+          {dict.servers.subtitle}
+        </p>
 
-        <input
-          type="text"
-          value={query}
-          onChange={(e) => setQuery(e.target.value)}
-          placeholder={dict.servers.placeholder}
-          autoFocus
-          className="mt-6 w-full rounded-lg border border-black/[.08] px-4 py-3 text-black dark:border-white/[.145] dark:bg-zinc-900 dark:text-zinc-50"
-        />
+        <div className="search-bar mt-7 rise" style={{ ["--d" as string]: "120ms" }}>
+          <svg viewBox="0 0 24 24" fill="none" aria-hidden className="search-bar-icon">
+            <circle cx="11" cy="11" r="7" stroke="currentColor" strokeWidth="2" />
+            <path d="m20 20-3.5-3.5" stroke="currentColor" strokeWidth="2" strokeLinecap="round" />
+          </svg>
+          <input
+            type="text"
+            value={query}
+            onChange={(e) => setQuery(e.target.value)}
+            placeholder={dict.servers.placeholder}
+            autoFocus
+            className="search-bar-input"
+            aria-label={dict.servers.title}
+          />
+          {isLoading && <span className="spinner" aria-hidden />}
+        </div>
 
-        <div className="mt-6 flex flex-col divide-y divide-black/[.06] rounded-2xl border border-black/[.08] bg-white dark:divide-white/[.08] dark:border-white/[.145] dark:bg-black">
-          {!trimmedQuery && <p className="px-5 py-6 text-sm text-zinc-500">{dict.servers.idle}</p>}
+        <div className="panel panel-flush mt-5 rise" style={{ ["--d" as string]: "180ms" }}>
+          {!trimmedQuery && <p className="empty-note">{dict.servers.idle}</p>}
 
-          {trimmedQuery && isLoading && <p className="px-5 py-6 text-sm text-zinc-500">{dict.servers.loading}</p>}
+          {trimmedQuery && isLoading && <p className="empty-note">{dict.servers.loading}</p>}
 
           {trimmedQuery && !isLoading && result?.status === "error" && (
-            <p className="px-5 py-6 text-sm text-red-600 dark:text-red-400">{result.message}</p>
+            <p className="empty-note danger-text">{result.message}</p>
           )}
 
           {trimmedQuery && !isLoading && result?.status === "ready" && result.servers.length === 0 && (
-            <p className="px-5 py-6 text-sm text-zinc-500">{dict.servers.empty}</p>
+            <p className="empty-note">{dict.servers.empty}</p>
           )}
 
           {trimmedQuery &&
             !isLoading &&
             result?.status === "ready" &&
-            result.servers.map((server) => (
+            result.servers.map((server, i) => (
               <Link
                 key={server.queryAddr}
                 href={`/servers/${encodeURIComponent(server.queryAddr)}`}
-                className="flex items-center justify-between gap-3 px-5 py-4 transition-colors hover:bg-black/[.03] dark:hover:bg-white/[.05]"
+                className="row rise"
+                style={{ ["--d" as string]: `${Math.min(i, 12) * 25}ms` }}
               >
-                <span className="truncate text-black dark:text-zinc-50">{server.name}</span>
-                <span className="shrink-0 text-xs text-zinc-500">
-                  {server.players}/{server.maxPlayers}
+                <span className="truncate">{server.name}</span>
+                <span className="shrink-0 text-right">
+                  <span className="mono text-xs faint">
+                    {server.players}/{server.maxPlayers}
+                  </span>
+                  <span className="fill">
+                    <span
+                      className={`fill-bar ${fillTone(server.players, server.maxPlayers)}`}
+                      style={{
+                        width: `${Math.min(100, server.maxPlayers > 0 ? (server.players / server.maxPlayers) * 100 : 0)}%`,
+                      }}
+                    />
+                  </span>
                 </span>
               </Link>
             ))}

@@ -14,20 +14,6 @@ function formatDate(iso: string | null): string {
   return new Date(iso).toLocaleString("uk-UA");
 }
 
-function Badge({ children, tone = "neutral" }: { children: React.ReactNode; tone?: "neutral" | "green" }) {
-  return (
-    <span
-      className={`rounded-full px-3 py-1 text-xs font-medium ${
-        tone === "green"
-          ? "bg-green-600/10 text-green-700 dark:text-green-400"
-          : "bg-zinc-100 text-zinc-700 dark:bg-zinc-900 dark:text-zinc-300"
-      }`}
-    >
-      {children}
-    </span>
-  );
-}
-
 const CYCLE_LABEL: Record<string, string> = {
   weekly: "щотижня",
   biweekly: "раз на 2 тижні",
@@ -40,13 +26,13 @@ export default async function ServerDetailPage({ params }: { params: Promise<{ a
 
   if (!result.ok) {
     return (
-      <div className="flex flex-1 flex-col items-center bg-zinc-50 px-6 py-16 font-sans dark:bg-black">
-        <div className="w-full max-w-3xl">
-          <Link href="/servers" className="text-sm text-zinc-600 dark:text-zinc-400">
-            ← Новий пошук
+      <div className="page">
+        <div className="shell-wide">
+          <Link href="/servers" className="back-link">
+            <span className="back-arrow">←</span> Новий пошук
           </Link>
-          <div className="mt-6 rounded-2xl border border-black/[.08] bg-white p-6 dark:border-white/[.145] dark:bg-black">
-            <p className="text-red-600 dark:text-red-400">{result.error}</p>
+          <div className="panel mt-6 rise">
+            <p className="danger-text">{result.error}</p>
           </div>
         </div>
       </div>
@@ -65,109 +51,126 @@ export default async function ServerDetailPage({ params }: { params: Promise<{ a
     }
   }
 
+  const fillPct = server.maxPlayers > 0 ? (server.players / server.maxPlayers) * 100 : 0;
+
   return (
-    <div className="flex flex-1 flex-col items-center bg-zinc-50 px-6 py-16 font-sans dark:bg-black">
-      <div className="w-full max-w-3xl">
-        <Link href="/servers" className="text-sm text-zinc-600 dark:text-zinc-400">
-          ← Новий пошук
+    <div className="page">
+      <div className="shell-wide">
+        <Link href="/servers" className="back-link">
+          <span className="back-arrow">←</span> Новий пошук
         </Link>
 
-        <div className="mt-6 grid grid-cols-1 gap-4 md:grid-cols-[1fr_280px]">
-          {/* Left: server info */}
-          <div className="flex flex-col gap-4 rounded-2xl border border-black/[.08] bg-white p-6 dark:border-white/[.145] dark:bg-black">
+        <div className="mt-6 grid grid-cols-1 gap-4 md:grid-cols-[1fr_20rem]">
+          {/* Server info */}
+          <div className="panel flex flex-col gap-5 rise">
             <div>
-              <h1 className="text-xl font-semibold text-black dark:text-zinc-50">{server.name}</h1>
-              <p className="mt-1 text-sm text-zinc-500">
-                {server.players}/{server.maxPlayers} гравців · {server.map}
-              </p>
+              <h1 className="text-xl font-bold leading-snug tracking-tight">{server.name}</h1>
+              <div className="mt-3 flex items-center gap-3">
+                <span className="mono text-sm">
+                  <span className="text-[var(--accent)] font-semibold">{server.players}</span>
+                  <span className="faint"> / {server.maxPlayers}</span>
+                </span>
+                <span className="fill grow" style={{ width: "auto", maxWidth: "12rem" }}>
+                  <span className="fill-bar fill-busy" style={{ width: `${Math.min(100, fillPct)}%` }} />
+                </span>
+              </div>
             </div>
 
             <div className="flex flex-wrap gap-2">
-              {server.region && <Badge>{server.region}</Badge>}
-              {server.gameMode && <Badge>{server.gameMode}</Badge>}
-              <Badge tone={server.secure ? "green" : "neutral"}>
-                {server.secure ? "VAC secure" : "не захищено VAC"}
-              </Badge>
+              {server.region && <span className="badge">{server.region}</span>}
+              {server.gameMode && <span className="badge">{server.gameMode}</span>}
+              <span className="badge">{server.map}</span>
+              <span className={`badge ${server.secure ? "badge-ok" : "badge-warn"}`}>
+                {server.secure ? "VAC secure" : "без VAC"}
+              </span>
             </div>
 
-            <div className="flex flex-col gap-1 text-sm text-zinc-600 dark:text-zinc-400">
-              <p>
-                Останній вайп:{" "}
-                <span className="font-medium text-black dark:text-zinc-50">
-                  {formatDate(server.wipedAt)}
-                </span>
+            <div className="inset flex flex-col gap-2 text-sm">
+              <p className="kv">
+                <span className="faint">Останній вайп</span>
+                <span>{formatDate(server.wipedAt)}</span>
               </p>
-              <p>
-                Наступний вайп:{" "}
+              <p className="kv">
+                <span className="faint">Наступний вайп</span>
                 {estimatedNextWipe ? (
-                  <span className="font-medium text-black dark:text-zinc-50">
-                    {formatDate(estimatedNextWipe)}{" "}
-                    <span className="font-normal text-zinc-500">
-                      (орієнтовно, {wipeCycle && CYCLE_LABEL[wipeCycle]})
+                  <span>
+                    {formatDate(estimatedNextWipe)}
+                    <span className="block text-xs faint">
+                      орієнтовно, {wipeCycle && CYCLE_LABEL[wipeCycle]}
                     </span>
                   </span>
                 ) : (
-                  <span className="text-zinc-500">невідомо — цикл вайпу не вказано в назві сервера</span>
+                  <span className="faint text-right text-xs">
+                    невідомо — цикл не вказано
+                    <br />в назві сервера
+                  </span>
                 )}
               </p>
             </div>
 
             <a
               href={`steam://run/${RUST_APP_ID}//+connect%20${server.connectAddr}`}
-              className="mt-2 flex h-11 items-center justify-center rounded-full bg-orange-600 px-6 text-sm font-medium text-white transition-colors hover:bg-orange-500"
+              className="btn btn-primary w-full"
             >
               Підключитись
             </a>
 
-            <div className="flex flex-col gap-1.5">
-              <p className="text-xs uppercase tracking-wide text-zinc-500">Адреса</p>
+            <div className="flex flex-col gap-2">
+              <p className="label">Адреса</p>
               <CopyableAddress label="Game Port" address={server.connectAddr} commandPrefix="client.connect" />
               <CopyableAddress label="Query Port" address={server.queryAddr} />
             </div>
 
-            <p className="text-xs text-zinc-400">
+            <p className="text-xs faint">
               {result.fromCache ? "З кешу" : "Свіжі дані"} · оновлено {formatDate(detail.fetchedAt)}
             </p>
           </div>
 
-          {/* Right: map panel */}
-          <div className="rounded-2xl border border-black/[.08] bg-white p-5 dark:border-white/[.145] dark:bg-black">
-            <p className="mb-3 text-xs uppercase tracking-wide text-zinc-500">Мапа</p>
+          {/* Map */}
+          <div className="panel rise" style={{ ["--d" as string]: "90ms" }}>
+            <p className="label">Мапа</p>
 
             {!mapSeed && (
-              <div className="flex flex-col gap-3">
-                <p className="text-sm text-zinc-600 dark:text-zinc-400">
+              <div className="mt-3 flex flex-col gap-3">
+                <p className="text-sm muted">
                   Сід мапи не вдалося визначити — сервер не передає ці дані публічно.
                 </p>
-                <Link
-                  href="/maps"
-                  className="text-sm font-medium text-orange-600 hover:underline dark:text-orange-400"
-                >
+                <Link href="/maps" className="link-accent">
                   Спробувати вручну за сідом →
                 </Link>
               </div>
             )}
 
             {mapSeed && mapPreview?.ok && mapPreview.status === "ready" && (
-              <div className="flex flex-col gap-3">
-                <Image
-                  src={mapPreview.map.imageIconUrl}
-                  alt={`Мапа ${mapSeed.size}/${mapSeed.seed}`}
-                  width={400}
-                  height={400}
-                  className="w-full rounded-xl border border-black/[.08] dark:border-white/[.145]"
-                  unoptimized
-                />
-                <p className="text-xs text-zinc-500">
-                  Розмір {mapSeed.size} · Сід {mapSeed.seed} · {mapPreview.map.totalMonuments} монументів
-                  <br />
-                  {mapSeed.source === "live" ? "визначено напряму з сервера" : "визначено з назви сервера"}
-                </p>
+              <div className="mt-3 flex flex-col gap-3">
                 <a
                   href={mapPreview.map.url}
                   target="_blank"
                   rel="noopener noreferrer"
-                  className="text-sm font-medium text-orange-600 hover:underline dark:text-orange-400"
+                  className="map-frame"
+                >
+                  <Image
+                    src={mapPreview.map.imageIconUrl}
+                    alt={`Мапа ${mapSeed.size}/${mapSeed.seed}`}
+                    width={400}
+                    height={400}
+                    unoptimized
+                  />
+                </a>
+                <div className="flex flex-col gap-1 text-xs faint">
+                  <span className="mono">
+                    {mapSeed.size} · сід {mapSeed.seed}
+                  </span>
+                  <span>{mapPreview.map.totalMonuments} монументів</span>
+                  <span>
+                    {mapSeed.source === "live" ? "визначено напряму з сервера" : "визначено з назви сервера"}
+                  </span>
+                </div>
+                <a
+                  href={mapPreview.map.url}
+                  target="_blank"
+                  rel="noopener noreferrer"
+                  className="link-accent"
                 >
                   Відкрити на rustmaps.com →
                 </a>
@@ -175,13 +178,13 @@ export default async function ServerDetailPage({ params }: { params: Promise<{ a
             )}
 
             {mapSeed && mapPreview?.ok && mapPreview.status === "generating" && (
-              <p className="text-sm text-zinc-600 dark:text-zinc-400">
+              <p className="note note-warn mt-3">
                 RustMaps ще генерує цю мапу — спробуй відкрити сторінку ще раз за кілька хвилин.
               </p>
             )}
 
             {mapSeed && mapPreview && !mapPreview.ok && (
-              <p className="text-sm text-red-600 dark:text-red-400">{mapPreview.error}</p>
+              <p className="note note-bad mt-3">{mapPreview.error}</p>
             )}
           </div>
         </div>

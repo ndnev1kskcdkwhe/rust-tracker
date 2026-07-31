@@ -23,15 +23,30 @@ export function CopyableAddress({
   };
 
   return (
-    <button
-      type="button"
-      onClick={handleClick}
-      title="Скопіювати"
-      className="flex items-center gap-2 rounded-lg bg-zinc-100 px-3 py-1.5 text-xs text-zinc-700 transition-colors hover:bg-zinc-200 dark:bg-zinc-900 dark:text-zinc-300 dark:hover:bg-zinc-800"
-    >
-      <span className="font-mono">{text}</span>
-      <span className="text-zinc-400">({label})</span>
-      {copied ? "✓" : "⧉"}
+    <button type="button" onClick={handleClick} title="Скопіювати" className="addr-chip">
+      <span className="addr-text mono">{text}</span>
+      <span className="addr-label">{label}</span>
+      <svg viewBox="0 0 24 24" fill="none" aria-hidden className="copy-glyph">
+        {copied ? (
+          <path
+            d="m5 12.5 4.5 4.5L19 7.5"
+            stroke="currentColor"
+            strokeWidth="2.2"
+            strokeLinecap="round"
+            strokeLinejoin="round"
+          />
+        ) : (
+          <>
+            <rect x="9" y="9" width="11" height="11" rx="2.2" stroke="currentColor" strokeWidth="1.9" />
+            <path
+              d="M15 6.5V6a2 2 0 0 0-2-2H6a2 2 0 0 0-2 2v7a2 2 0 0 0 2 2h.5"
+              stroke="currentColor"
+              strokeWidth="1.9"
+              strokeLinecap="round"
+            />
+          </>
+        )}
+      </svg>
     </button>
   );
 }

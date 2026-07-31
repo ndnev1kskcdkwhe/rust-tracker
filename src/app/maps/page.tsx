@@ -2,7 +2,6 @@
 
 import { useEffect, useRef, useState } from "react";
 import { useSearchParams } from "next/navigation";
-import Link from "next/link";
 import Image from "next/image";
 
 interface RustMapMonument {
@@ -72,8 +71,17 @@ export default function MapsPage() {
     if (mapId) {
       url.searchParams.set("mapId", mapId);
     }
-    const res = await fetch(url);
-    const data: ApiResult = await res.json();
+    let data: ApiResult;
+    try {
+      const res = await fetch(url);
+      // A 500 can come back with an empty body, which makes res.json() throw — without this
+      // guard the rejection is unhandled and the page sits on "loading" forever.
+      data = (await res.json().catch(() => ({ error: "Сервіс мап зараз недоступний." }))) as ApiResult;
+    } catch {
+      stopPolling();
+      setState({ kind: "error", message: "Не вдалося зв'язатися з сервером. Перевір з'єднання." });
+      return;
+    }
 
     if ("error" in data) {
       stopPolling();
@@ -116,56 +124,60 @@ export default function MapsPage() {
   };
 
   return (
-    <div className="flex flex-1 flex-col items-center bg-zinc-50 px-6 py-16 font-sans dark:bg-black">
-      <div className="w-full max-w-2xl">
-        <Link href="/" className="text-sm text-zinc-600 dark:text-zinc-400">
-          ← На головну
-        </Link>
-        <h1 className="mt-4 text-2xl font-semibold text-black dark:text-zinc-50">Прев&apos;ю мапи</h1>
-        <p className="mt-1 text-sm text-zinc-600 dark:text-zinc-400">
+    <div className="page">
+      <div className="shell">
+        <h1 className="page-title rise">Прев&apos;ю мапи</h1>
+        <p className="page-lede rise" style={{ ["--d" as string]: "60ms" }}>
           Введи розмір і сід мапи (їх видно в конфігу власного сервера, або якщо адмін вказав їх у
           назві сервера) — покажемо картинку і список монументів через RustMaps.
         </p>
 
-        <form onSubmit={handleSubmit} className="mt-6 flex flex-wrap gap-3">
-          <input
-            type="number"
-            value={size}
-            onChange={(e) => setSize(e.target.value)}
-            placeholder="Розмір (напр. 3500)"
-            min={1000}
-            max={6000}
-            required
-            className="w-48 rounded-lg border border-black/[.08] px-4 py-3 text-black dark:border-white/[.145] dark:bg-zinc-900 dark:text-zinc-50"
-          />
-          <input
-            type="number"
-            value={seed}
-            onChange={(e) => setSeed(e.target.value)}
-            placeholder="Сід (напр. 12345)"
-            min={0}
-            required
-            className="w-48 rounded-lg border border-black/[.08] px-4 py-3 text-black dark:border-white/[.145] dark:bg-zinc-900 dark:text-zinc-50"
-          />
+        <form
+          onSubmit={handleSubmit}
+          className="mt-7 flex flex-wrap items-end gap-3 rise"
+          style={{ ["--d" as string]: "120ms" }}
+        >
+          <label className="field flex-1 min-w-[8rem]">
+            Розмір
+            <input
+              type="number"
+              value={size}
+              onChange={(e) => setSize(e.target.value)}
+              placeholder="3500"
+              min={1000}
+              max={6000}
+              required
+              className="input mono"
+            />
+          </label>
+          <label className="field flex-1 min-w-[8rem]">
+            Сід
+            <input
+              type="number"
+              value={seed}
+              onChange={(e) => setSeed(e.target.value)}
+              placeholder="12345"
+              min={0}
+              required
+              className="input mono"
+            />
+          </label>
           <button
             type="submit"
             disabled={state.kind === "loading" || state.kind === "generating"}
-            className="h-12 rounded-full bg-foreground px-6 text-sm font-medium text-background transition-colors hover:bg-[#383838] disabled:opacity-50 dark:hover:bg-[#ccc]"
+            className="btn btn-primary shrink-0"
           >
             {state.kind === "loading" || state.kind === "generating" ? "Завантаження..." : "Показати"}
           </button>
         </form>
 
-        <div className="mt-8">
-          {state.kind === "error" && (
-            <div className="rounded-2xl border border-black/[.08] bg-white p-6 dark:border-white/[.145] dark:bg-black">
-              <p className="text-red-600 dark:text-red-400">{state.message}</p>
-            </div>
-          )}
+        <div className="mt-6">
+          {state.kind === "error" && <p className="note note-bad">{state.message}</p>}
 
           {state.kind === "generating" && (
-            <div className="rounded-2xl border border-black/[.08] bg-white p-6 dark:border-white/[.145] dark:bg-black">
-              <p className="text-black dark:text-zinc-50">
+            <div className="panel flex items-start gap-3">
+              <span className="spinner mt-1" aria-hidden />
+              <p className="text-sm muted leading-relaxed">
                 RustMaps ще генерує цю мапу вперше
                 {state.queuePosition !== null && ` (позиція в черзі: ${state.queuePosition})`} — це може
                 зайняти кілька хвилин. Сторінка сама перевіряє прогрес, можна почекати тут.
@@ -174,45 +186,38 @@ export default function MapsPage() {
           )}
 
           {state.kind === "ready" && (
-            <div className="flex flex-col gap-4 rounded-2xl border border-black/[.08] bg-white p-6 dark:border-white/[.145] dark:bg-black">
+            <div className="panel flex flex-col gap-4 rise">
               <div className="flex flex-wrap items-center justify-between gap-2">
                 <div>
-                  <p className="text-lg font-medium text-black dark:text-zinc-50">
-                    Розмір {state.map.size} · Сід {state.map.seed}
+                  <p className="section-title mono">
+                    {state.map.size} · сід {state.map.seed}
                   </p>
-                  <p className="text-sm text-zinc-500">
+                  <p className="mt-1 text-xs faint">
                     {state.map.totalMonuments} монументів · {state.fromCache ? "з кешу" : "щойно отримано"}
                   </p>
                 </div>
-                <a
-                  href={state.map.url}
-                  target="_blank"
-                  rel="noopener noreferrer"
-                  className="text-sm font-medium text-orange-600 hover:underline dark:text-orange-400"
-                >
-                  Відкрити на rustmaps.com →
+                <a href={state.map.url} target="_blank" rel="noopener noreferrer" className="link-accent">
+                  rustmaps.com →
                 </a>
               </div>
 
-              <Image
-                src={state.map.imageIconUrl}
-                alt={`Мапа ${state.map.size}/${state.map.seed}`}
-                width={800}
-                height={800}
-                className="w-full rounded-xl border border-black/[.08] dark:border-white/[.145]"
-                unoptimized
-              />
+              <a href={state.map.url} target="_blank" rel="noopener noreferrer" className="map-frame">
+                <Image
+                  src={state.map.imageIconUrl}
+                  alt={`Мапа ${state.map.size}/${state.map.seed}`}
+                  width={800}
+                  height={800}
+                  unoptimized
+                />
+              </a>
 
               <div>
-                <p className="mb-2 text-xs uppercase tracking-wide text-zinc-500">Монументи</p>
-                <div className="flex flex-wrap gap-2">
+                <p className="label">Монументи</p>
+                <div className="mt-3 flex flex-wrap gap-1.5">
                   {groupMonuments(state.map.monuments).map(([type, count]) => (
-                    <span
-                      key={type}
-                      className="rounded-full bg-zinc-100 px-3 py-1 text-xs text-zinc-700 dark:bg-zinc-900 dark:text-zinc-300"
-                    >
+                    <span key={type} className="badge">
                       {humanizeMonumentType(type)}
-                      {count > 1 && ` ×${count}`}
+                      {count > 1 && <span className="mono text-[var(--accent)]">×{count}</span>}
                     </span>
                   ))}
                 </div>

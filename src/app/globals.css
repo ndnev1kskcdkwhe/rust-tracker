@@ -1,26 +1,1134 @@
 @import "tailwindcss";
 
+/* ---------------------------------------------------------------------------
+   Design tokens
+
+   Dark-only by design: Rust is a dark game, and the previous mixed light/dark
+   styling made pages feel like they came from different products. The base is a
+   warm-tinted charcoal rather than pure black — pure #000 next to orange reads
+   as harsh, and the warmth ties the neutrals to the accent.
+--------------------------------------------------------------------------- */
 :root {
-  --background: #ffffff;
-  --foreground: #171717;
+  --bg: #0a0a0b;
+  --bg-1: #101012;
+  --bg-2: #16161a;
+  --bg-3: #1d1d22;
+
+  --line: rgba(255, 255, 255, 0.07);
+  --line-2: rgba(255, 255, 255, 0.12);
+
+  --tx: #ededee;
+  --tx-2: #a3a3ad;
+  --tx-3: #6f6f7b;
+
+  --accent: #f4581f;
+  --accent-2: #ff7a45;
+  --accent-dim: rgba(244, 88, 31, 0.14);
+  --accent-line: rgba(244, 88, 31, 0.38);
+
+  --ok: #4ade80;
+  --ok-dim: rgba(74, 222, 128, 0.12);
+  --warn: #fbbf24;
+  --warn-dim: rgba(251, 191, 36, 0.12);
+  --bad: #f87171;
+  --bad-dim: rgba(248, 113, 113, 0.12);
+
+  --r: 14px;
+  --r-sm: 10px;
+
+  --background: var(--bg);
+  --foreground: var(--tx);
 }
 
 @theme inline {
-  --color-background: var(--background);
-  --color-foreground: var(--foreground);
+  --color-background: var(--bg);
+  --color-foreground: var(--tx);
+  --color-accent: var(--accent);
   --font-sans: var(--font-geist-sans);
   --font-mono: var(--font-geist-mono);
 }
 
-@media (prefers-color-scheme: dark) {
-  :root {
-    --background: #0a0a0a;
-    --foreground: #ededed;
-  }
+html {
+  color-scheme: dark;
 }
 
 body {
-  background: var(--background);
-  color: var(--foreground);
-  font-family: Arial, Helvetica, sans-serif;
+  background: var(--bg);
+  color: var(--tx);
+  font-family: var(--font-geist-sans), system-ui, sans-serif;
+  -webkit-font-smoothing: antialiased;
+}
+
+/* Ambient backdrop: one warm bloom top-right, a cooler one bottom-left, and a
+   faint grid. Fixed + pointer-events:none so it never interferes with content. */
+body::before {
+  content: "";
+  position: fixed;
+  inset: 0;
+  z-index: -1;
+  pointer-events: none;
+  background:
+    radial-gradient(70% 55% at 82% -5%, rgba(244, 88, 31, 0.16), transparent 62%),
+    radial-gradient(50% 45% at 5% 100%, rgba(244, 88, 31, 0.06), transparent 65%),
+    var(--bg);
+}
+
+body::after {
+  content: "";
+  position: fixed;
+  inset: 0;
+  z-index: -1;
+  pointer-events: none;
+  opacity: 0.75;
+  background-image:
+    linear-gradient(to right, rgba(255, 255, 255, 0.028) 1px, transparent 1px),
+    linear-gradient(to bottom, rgba(255, 255, 255, 0.028) 1px, transparent 1px);
+  background-size: 56px 56px;
+  mask-image: radial-gradient(120% 90% at 50% 0%, #000 35%, transparent 78%);
+}
+
+::selection {
+  background: var(--accent);
+  color: #fff;
+}
+
+@layer components {
+  /* --- layout ----------------------------------------------------------- */
+  .page {
+    display: flex;
+    flex: 1 1 0%;
+    flex-direction: column;
+    align-items: center;
+    padding: 5.5rem 1.5rem 6rem;
+  }
+
+  .shell {
+    width: 100%;
+    max-width: 44rem;
+  }
+  .shell-wide {
+    width: 100%;
+    max-width: 60rem;
+  }
+
+  .back-link {
+    display: inline-flex;
+    align-items: center;
+    gap: 0.4rem;
+    font-size: 0.8125rem;
+    color: var(--tx-3);
+    transition: color 0.18s ease, transform 0.18s ease;
+  }
+  .back-link:hover {
+    color: var(--tx);
+  }
+  .back-link:hover .back-arrow {
+    transform: translateX(-3px);
+  }
+  .back-arrow {
+    display: inline-block;
+    transition: transform 0.18s ease;
+  }
+
+  /* --- type ------------------------------------------------------------- */
+  .page-title {
+    margin-top: 0.85rem;
+    font-size: clamp(1.6rem, 1.2rem + 1.6vw, 2.1rem);
+    font-weight: 700;
+    letter-spacing: -0.02em;
+    color: var(--tx);
+  }
+
+  .page-lede {
+    margin-top: 0.5rem;
+    font-size: 0.9rem;
+    line-height: 1.6;
+    color: var(--tx-2);
+    max-width: 46rem;
+  }
+
+  .section-title {
+    font-size: 1rem;
+    font-weight: 650;
+    letter-spacing: -0.01em;
+    color: var(--tx);
+  }
+
+  /* Micro label — the technical/HUD note above a value or a group. */
+  .label {
+    font-size: 0.625rem;
+    font-weight: 600;
+    letter-spacing: 0.14em;
+    text-transform: uppercase;
+    color: var(--tx-3);
+  }
+
+  .mono {
+    font-family: var(--font-geist-mono), ui-monospace, monospace;
+    font-variant-numeric: tabular-nums;
+  }
+
+  .muted {
+    color: var(--tx-2);
+  }
+  .faint {
+    color: var(--tx-3);
+  }
+  .danger-text {
+    color: var(--bad);
+  }
+
+  /* --- surfaces --------------------------------------------------------- */
+  /* The 1px top highlight reads as light catching a metal edge — it's what
+     keeps flat panels from looking like plain grey rectangles. */
+  .panel {
+    position: relative;
+    border: 1px solid var(--line);
+    border-radius: var(--r);
+    background: linear-gradient(180deg, var(--bg-2), var(--bg-1));
+    padding: 1.5rem;
+    overflow: hidden;
+  }
+  .panel::before {
+    content: "";
+    position: absolute;
+    inset: 0 0 auto 0;
+    height: 1px;
+    background: linear-gradient(90deg, transparent, rgba(255, 255, 255, 0.13), transparent);
+  }
+
+  .panel-flush {
+    padding: 0;
+  }
+
+  .inset {
+    border: 1px solid var(--line);
+    border-radius: var(--r-sm);
+    background: rgba(0, 0, 0, 0.28);
+    padding: 1rem;
+  }
+
+  .card-link {
+    display: flex;
+    flex-direction: column;
+    gap: 0.6rem;
+    position: relative;
+    border: 1px solid var(--line);
+    border-radius: var(--r);
+    background: linear-gradient(180deg, var(--bg-2), var(--bg-1));
+    padding: 1.4rem;
+    overflow: hidden;
+    transition: border-color 0.2s ease, transform 0.2s ease, background 0.2s ease;
+  }
+  .card-link::before {
+    content: "";
+    position: absolute;
+    inset: 0 0 auto 0;
+    height: 1px;
+    background: linear-gradient(90deg, transparent, rgba(255, 255, 255, 0.13), transparent);
+  }
+  .card-link:hover {
+    border-color: var(--accent-line);
+    transform: translateY(-2px);
+    background: linear-gradient(180deg, var(--bg-3), var(--bg-1));
+  }
+  .card-link:hover .go {
+    transform: translateX(4px);
+  }
+  .go {
+    color: var(--accent);
+    font-size: 0.8125rem;
+    font-weight: 600;
+    transition: transform 0.2s ease;
+    display: inline-block;
+  }
+
+  /* Rows in a divided list (search results, saved items). */
+  .row {
+    display: flex;
+    align-items: center;
+    justify-content: space-between;
+    gap: 0.75rem;
+    padding: 0.85rem 1.25rem;
+    border-bottom: 1px solid var(--line);
+    transition: background 0.15s ease, padding-left 0.15s ease;
+  }
+  .row:last-child {
+    border-bottom: 0;
+  }
+  a.row:hover {
+    background: rgba(255, 255, 255, 0.035);
+    padding-left: 1.5rem;
+  }
+
+  /* --- controls --------------------------------------------------------- */
+  .btn {
+    display: inline-flex;
+    align-items: center;
+    justify-content: center;
+    gap: 0.5rem;
+    height: 2.75rem;
+    padding: 0 1.4rem;
+    border-radius: 999px;
+    border: 1px solid var(--line-2);
+    background: transparent;
+    color: var(--tx);
+    font-size: 0.875rem;
+    font-weight: 550;
+    cursor: pointer;
+    transition: background 0.18s ease, border-color 0.18s ease, transform 0.12s ease, color 0.18s ease;
+  }
+  .btn:hover:not(:disabled) {
+    background: rgba(255, 255, 255, 0.06);
+    border-color: var(--line-2);
+  }
+  .btn:active:not(:disabled) {
+    transform: translateY(1px);
+  }
+  .btn:disabled {
+    opacity: 0.45;
+    cursor: not-allowed;
+  }
+
+  .btn-primary {
+    border-color: transparent;
+    background: linear-gradient(180deg, var(--accent-2), var(--accent));
+    color: #fff;
+    font-weight: 600;
+    box-shadow: 0 6px 18px -8px rgba(244, 88, 31, 0.9);
+  }
+  .btn-primary:hover:not(:disabled) {
+    background: linear-gradient(180deg, #ff8a58, var(--accent-2));
+    border-color: transparent;
+  }
+
+  .btn-steam {
+    border-color: transparent;
+    background: #1b2838;
+    color: #fff;
+  }
+  .btn-steam:hover:not(:disabled) {
+    background: #27405c;
+    border-color: transparent;
+  }
+
+  .btn-sm {
+    height: 2.25rem;
+    padding: 0 1rem;
+    font-size: 0.8125rem;
+  }
+
+  .link-danger {
+    background: none;
+    border: 0;
+    padding: 0;
+    font-size: 0.75rem;
+    color: var(--bad);
+    cursor: pointer;
+    transition: opacity 0.15s ease;
+  }
+  .link-danger:hover {
+    text-decoration: underline;
+    opacity: 0.85;
+  }
+
+  .link-accent {
+    color: var(--accent);
+    font-weight: 600;
+    font-size: 0.875rem;
+    transition: color 0.15s ease;
+  }
+  .link-accent:hover {
+    color: var(--accent-2);
+    text-decoration: underline;
+  }
+
+  .field {
+    display: flex;
+    flex-direction: column;
+    gap: 0.4rem;
+    font-size: 0.8125rem;
+    color: var(--tx-2);
+  }
+
+  .input,
+  .select {
+    width: 100%;
+    border: 1px solid var(--line-2);
+    border-radius: var(--r-sm);
+    background: rgba(0, 0, 0, 0.35);
+    padding: 0.65rem 0.85rem;
+    color: var(--tx);
+    font-size: 0.9rem;
+    transition: border-color 0.18s ease, box-shadow 0.18s ease, background 0.18s ease;
+  }
+  .input::placeholder {
+    color: var(--tx-3);
+  }
+  .input:focus,
+  .select:focus {
+    outline: none;
+    border-color: var(--accent-line);
+    box-shadow: 0 0 0 3px var(--accent-dim);
+    background: rgba(0, 0, 0, 0.5);
+  }
+  .select {
+    appearance: none;
+    background-image: linear-gradient(45deg, transparent 50%, var(--tx-3) 50%),
+      linear-gradient(135deg, var(--tx-3) 50%, transparent 50%);
+    background-position: calc(100% - 18px) calc(50% + 2px), calc(100% - 13px) calc(50% + 2px);
+    background-size: 5px 5px, 5px 5px;
+    background-repeat: no-repeat;
+    padding-right: 2.25rem;
+  }
+  .select option {
+    background: var(--bg-2);
+    color: var(--tx);
+  }
+
+  /* Segmented control (two-or-more mutually exclusive choices). */
+  .seg {
+    display: grid;
+    gap: 0.25rem;
+    padding: 0.25rem;
+    border: 1px solid var(--line);
+    border-radius: 999px;
+    background: rgba(0, 0, 0, 0.3);
+  }
+  .seg-item {
+    height: 2.35rem;
+    border: 0;
+    border-radius: 999px;
+    background: transparent;
+    color: var(--tx-2);
+    font-size: 0.8125rem;
+    font-weight: 550;
+    cursor: pointer;
+    transition: background 0.18s ease, color 0.18s ease;
+  }
+  .seg-item:hover {
+    color: var(--tx);
+    background: rgba(255, 255, 255, 0.05);
+  }
+  .seg-item[aria-pressed="true"] {
+    background: linear-gradient(180deg, var(--accent-2), var(--accent));
+    color: #fff;
+    font-weight: 600;
+  }
+
+  /* Checkbox tile — used for "which explosives do you have". */
+  .pick {
+    display: flex;
+    align-items: center;
+    gap: 0.55rem;
+    padding: 0.5rem 0.7rem;
+    border: 1px solid var(--line);
+    border-radius: var(--r-sm);
+    background: rgba(0, 0, 0, 0.22);
+    font-size: 0.8125rem;
+    color: var(--tx-2);
+    cursor: pointer;
+    transition: border-color 0.18s ease, background 0.18s ease, color 0.18s ease;
+  }
+  .pick:hover {
+    border-color: var(--line-2);
+    color: var(--tx);
+  }
+  .pick:has(:checked) {
+    border-color: var(--accent-line);
+    background: var(--accent-dim);
+    color: var(--tx);
+  }
+  .pick input {
+    accent-color: var(--accent);
+  }
+
+  /* --- bits ------------------------------------------------------------- */
+  .badge {
+    display: inline-flex;
+    align-items: center;
+    gap: 0.35rem;
+    padding: 0.28rem 0.65rem;
+    border-radius: 999px;
+    border: 1px solid var(--line);
+    background: rgba(255, 255, 255, 0.04);
+    font-size: 0.7rem;
+    font-weight: 550;
+    color: var(--tx-2);
+    white-space: nowrap;
+  }
+  .badge-accent {
+    border-color: var(--accent-line);
+    background: var(--accent-dim);
+    color: var(--accent-2);
+  }
+  .badge-ok {
+    border-color: rgba(74, 222, 128, 0.3);
+    background: var(--ok-dim);
+    color: var(--ok);
+  }
+  .badge-warn {
+    border-color: rgba(251, 191, 36, 0.3);
+    background: var(--warn-dim);
+    color: var(--warn);
+  }
+  .badge-bad {
+    border-color: rgba(248, 113, 113, 0.32);
+    background: var(--bad-dim);
+    color: var(--bad);
+  }
+
+  .note {
+    border-radius: var(--r-sm);
+    padding: 0.8rem 1rem;
+    font-size: 0.8125rem;
+    line-height: 1.55;
+  }
+  .note-warn {
+    border: 1px solid rgba(251, 191, 36, 0.28);
+    background: var(--warn-dim);
+    color: #fde68a;
+  }
+  .note-bad {
+    border: 1px solid rgba(248, 113, 113, 0.28);
+    background: var(--bad-dim);
+    color: #fecaca;
+  }
+
+  .dot {
+    width: 0.45rem;
+    height: 0.45rem;
+    border-radius: 999px;
+    background: var(--tx-3);
+  }
+  .dot-live {
+    background: var(--ok);
+    animation: pulse 2s ease-in-out infinite;
+  }
+
+  .stat {
+    border: 1px solid var(--line);
+    border-radius: var(--r-sm);
+    background: rgba(0, 0, 0, 0.25);
+    padding: 0.9rem 1rem;
+  }
+  .stat-value {
+    margin-top: 0.3rem;
+    font-size: 1.5rem;
+    font-weight: 700;
+    letter-spacing: -0.02em;
+    color: var(--tx);
+  }
+
+  /* --- home ------------------------------------------------------------- */
+  .site-header {
+    position: sticky;
+    top: 0;
+    z-index: 40;
+    display: flex;
+    flex-wrap: wrap;
+    align-items: center;
+    justify-content: space-between;
+    gap: 0.75rem;
+    padding: 0.85rem 1.5rem;
+    border-bottom: 1px solid var(--line);
+    background: rgba(10, 10, 11, 0.72);
+    backdrop-filter: blur(12px);
+  }
+
+  .logo {
+    display: inline-flex;
+    align-items: center;
+    gap: 0.55rem;
+  }
+  .logo-mark {
+    width: 1.45rem;
+    height: 1.45rem;
+    color: var(--accent);
+    transition: transform 0.4s cubic-bezier(0.22, 1, 0.36, 1);
+  }
+  .logo:hover .logo-mark {
+    transform: rotate(60deg);
+  }
+  .logo-text {
+    font-size: 0.8rem;
+    font-weight: 700;
+    letter-spacing: 0.16em;
+    text-transform: uppercase;
+    color: var(--tx);
+  }
+  .logo-accent {
+    color: var(--accent);
+    margin-left: 0.3em;
+  }
+
+  .hero {
+    display: flex;
+    flex: 1 1 auto;
+    flex-direction: column;
+    align-items: center;
+    gap: 1.15rem;
+    padding: 5.5rem 1.5rem 6rem;
+    text-align: center;
+  }
+
+  .hero-eyebrow {
+    display: inline-flex;
+    align-items: center;
+    gap: 0.5rem;
+    padding: 0.35rem 0.85rem;
+    border-radius: 999px;
+    border: 1px solid var(--accent-line);
+    background: var(--accent-dim);
+    font-size: 0.65rem;
+    font-weight: 700;
+    letter-spacing: 0.2em;
+    text-transform: uppercase;
+    color: var(--accent-2);
+  }
+
+  .hero-title {
+    max-width: 20ch;
+    font-size: clamp(2.2rem, 1.3rem + 4vw, 4rem);
+    font-weight: 800;
+    line-height: 1.04;
+    letter-spacing: -0.035em;
+    color: var(--tx);
+  }
+  .hero-word {
+    color: var(--accent);
+    /* Keeps the headline from reflowing as words of different length swap in. */
+    text-shadow: 0 0 42px rgba(244, 88, 31, 0.35);
+  }
+
+  .hero-lede {
+    max-width: 48ch;
+    font-size: 0.98rem;
+    line-height: 1.65;
+    color: var(--tx-2);
+  }
+
+  .hero-search {
+    display: flex;
+    align-items: center;
+    gap: 0.5rem;
+    width: 100%;
+    max-width: 34rem;
+    margin-top: 0.75rem;
+    padding: 0.4rem 0.4rem 0.4rem 1rem;
+    border: 1px solid var(--line-2);
+    border-radius: 999px;
+    background: rgba(0, 0, 0, 0.4);
+    transition: border-color 0.2s ease, box-shadow 0.2s ease;
+  }
+  .hero-search:focus-within {
+    border-color: var(--accent-line);
+    box-shadow: 0 0 0 4px var(--accent-dim);
+  }
+  .hero-search-icon {
+    width: 1.05rem;
+    height: 1.05rem;
+    flex-shrink: 0;
+    color: var(--tx-3);
+  }
+  .hero-input {
+    flex: 1 1 auto;
+    min-width: 0;
+    border: 0;
+    background: transparent;
+    color: var(--tx);
+    font-size: 0.9rem;
+  }
+  .hero-input::placeholder {
+    color: var(--tx-3);
+  }
+  .hero-input:focus {
+    outline: none;
+  }
+
+  /* Below ~26rem the pill can't fit icon + field + button on one line without
+     squeezing the input to nothing, so drop the button to its own row. */
+  @media (max-width: 26rem) {
+    .hero-search {
+      flex-wrap: wrap;
+      border-radius: var(--r);
+      padding: 0.75rem;
+    }
+    .hero-search-icon {
+      display: none;
+    }
+    .hero-input {
+      flex-basis: 100%;
+      padding: 0.15rem 0.25rem 0.5rem;
+    }
+    .hero-search .btn {
+      flex: 1 1 auto;
+    }
+  }
+
+  .features {
+    display: flex;
+    justify-content: center;
+    padding: 4rem 1.5rem 5rem;
+    border-top: 1px solid var(--line);
+    background: linear-gradient(180deg, rgba(0, 0, 0, 0.35), transparent);
+  }
+  .features-grid {
+    display: grid;
+    gap: 1rem;
+    margin-top: 1.5rem;
+    grid-template-columns: repeat(auto-fit, minmax(15rem, 1fr));
+  }
+  .feature-icon {
+    display: inline-flex;
+    align-items: center;
+    justify-content: center;
+    width: 2.6rem;
+    height: 2.6rem;
+    border-radius: var(--r-sm);
+    border: 1px solid var(--accent-line);
+    background: var(--accent-dim);
+    color: var(--accent);
+  }
+  .feature-icon svg {
+    width: 1.35rem;
+    height: 1.35rem;
+  }
+
+  .site-footer {
+    display: flex;
+    flex-wrap: wrap;
+    align-items: center;
+    justify-content: space-between;
+    gap: 0.5rem;
+    /* Extra bottom room so the fixed language dock never sits on top of the text. */
+    padding: 1.5rem 1.5rem 4.5rem;
+    border-top: 1px solid var(--line);
+  }
+
+  /* --- calculators ------------------------------------------------------ */
+  /* The headline number of a calculation — separated by a rule so the eye lands
+     on the answer rather than the ingredient list above it. */
+  .cost {
+    display: flex;
+    align-items: baseline;
+    justify-content: space-between;
+    gap: 1rem;
+    margin-top: 1rem;
+    padding-top: 0.9rem;
+    border-top: 1px solid var(--line);
+  }
+  .cost-value {
+    font-size: 1.35rem;
+    font-weight: 700;
+    letter-spacing: -0.02em;
+    color: var(--accent);
+  }
+
+  .queue-item {
+    display: flex;
+    align-items: center;
+    gap: 0.75rem;
+    padding: 0.6rem 0.85rem;
+    border: 1px solid var(--line);
+    border-radius: var(--r-sm);
+    background: rgba(0, 0, 0, 0.25);
+  }
+
+  /* Gene letters: green = desirable trait, red = undesirable. */
+  .gene {
+    display: inline-flex;
+    align-items: center;
+    justify-content: center;
+    width: 1.75rem;
+    height: 1.75rem;
+    border-radius: var(--r-sm);
+    font-size: 0.72rem;
+    font-weight: 700;
+    font-family: var(--font-geist-mono), monospace;
+    color: #fff;
+  }
+  .gene-good {
+    background: linear-gradient(180deg, #3fae62, #2f8c4d);
+  }
+  .gene-bad {
+    background: linear-gradient(180deg, #d95151, #b83c3c);
+  }
+  .gene-empty {
+    border: 1px dashed var(--line-2);
+    background: transparent;
+    color: var(--tx-3);
+  }
+
+  /* --- profile / detail ------------------------------------------------- */
+  .avatar-ring {
+    padding: 3px;
+    border-radius: var(--r);
+    background: linear-gradient(140deg, var(--accent), transparent 55%, var(--line-2));
+  }
+  .avatar-ring img {
+    display: block;
+    border-radius: calc(var(--r) - 4px);
+  }
+
+  /* Label on the left, value right-aligned — keeps mixed-length metadata tidy. */
+  .kv {
+    display: flex;
+    align-items: baseline;
+    justify-content: space-between;
+    gap: 1rem;
+  }
+  .kv > span:last-child {
+    color: var(--tx);
+    text-align: right;
+  }
+  /* Side-by-side needs room for both halves; below this the value column gets so
+     narrow that longer values wrap to one word per line. */
+  @media (max-width: 26rem) {
+    .kv {
+      flex-direction: column;
+      align-items: flex-start;
+      gap: 0.15rem;
+    }
+    .kv > span:last-child {
+      text-align: left;
+    }
+  }
+
+  .copy-chip {
+    display: flex;
+    align-items: center;
+    justify-content: space-between;
+    gap: 0.5rem;
+    width: 100%;
+    padding: 0.55rem 0.75rem;
+    border: 1px solid var(--line);
+    border-radius: var(--r-sm);
+    background: rgba(0, 0, 0, 0.32);
+    color: var(--tx-2);
+    font-size: 0.75rem;
+    cursor: pointer;
+    transition: border-color 0.18s ease, color 0.18s ease, background 0.18s ease;
+  }
+  .copy-chip:hover {
+    border-color: var(--accent-line);
+    color: var(--tx);
+    background: rgba(0, 0, 0, 0.45);
+  }
+  .copy-glyph {
+    width: 0.9rem;
+    height: 0.9rem;
+    flex-shrink: 0;
+    color: var(--accent);
+  }
+
+  .addr-chip {
+    display: flex;
+    align-items: center;
+    gap: 0.6rem;
+    width: 100%;
+    padding: 0.5rem 0.7rem;
+    border: 1px solid var(--line);
+    border-radius: var(--r-sm);
+    background: rgba(0, 0, 0, 0.32);
+    cursor: pointer;
+    text-align: left;
+    transition: border-color 0.18s ease, background 0.18s ease;
+  }
+  .addr-chip:hover {
+    border-color: var(--accent-line);
+    background: rgba(0, 0, 0, 0.45);
+  }
+  .addr-text {
+    flex: 1 1 auto;
+    min-width: 0;
+    overflow-x: auto;
+    white-space: nowrap;
+    font-size: 0.72rem;
+    color: var(--tx);
+    scrollbar-width: none;
+  }
+  .addr-text::-webkit-scrollbar {
+    display: none;
+  }
+  .addr-label {
+    flex-shrink: 0;
+    font-size: 0.62rem;
+    color: var(--tx-3);
+  }
+
+  .map-frame {
+    display: block;
+    border: 1px solid var(--line);
+    border-radius: var(--r-sm);
+    overflow: hidden;
+    transition: border-color 0.2s ease, transform 0.2s ease;
+  }
+  .map-frame:hover {
+    border-color: var(--accent-line);
+    transform: scale(1.01);
+  }
+  .map-frame img {
+    display: block;
+    width: 100%;
+    height: auto;
+  }
+
+  /* --- search / lists --------------------------------------------------- */
+  .search-bar {
+    display: flex;
+    align-items: center;
+    gap: 0.6rem;
+    padding: 0.7rem 1rem;
+    border: 1px solid var(--line-2);
+    border-radius: var(--r);
+    background: rgba(0, 0, 0, 0.4);
+    transition: border-color 0.2s ease, box-shadow 0.2s ease;
+  }
+  .search-bar:focus-within {
+    border-color: var(--accent-line);
+    box-shadow: 0 0 0 4px var(--accent-dim);
+  }
+  .search-bar-icon {
+    width: 1.05rem;
+    height: 1.05rem;
+    flex-shrink: 0;
+    color: var(--tx-3);
+  }
+  .search-bar-input {
+    flex: 1 1 auto;
+    min-width: 0;
+    border: 0;
+    background: transparent;
+    color: var(--tx);
+    font-size: 0.9rem;
+  }
+  .search-bar-input::placeholder {
+    color: var(--tx-3);
+  }
+  .search-bar-input:focus {
+    outline: none;
+  }
+
+  .spinner {
+    width: 0.95rem;
+    height: 0.95rem;
+    flex-shrink: 0;
+    border-radius: 999px;
+    border: 2px solid var(--line-2);
+    border-top-color: var(--accent);
+    animation: spin 0.7s linear infinite;
+  }
+
+  .empty-note {
+    padding: 1.5rem 1.25rem;
+    font-size: 0.85rem;
+    color: var(--tx-3);
+  }
+
+  /* Population bar under the player count in server rows. */
+  .fill {
+    display: block;
+    width: 3.5rem;
+    height: 3px;
+    margin-top: 0.35rem;
+    border-radius: 999px;
+    background: rgba(255, 255, 255, 0.08);
+    overflow: hidden;
+  }
+  .fill-bar {
+    display: block;
+    height: 100%;
+    border-radius: 999px;
+    background: var(--tx-3);
+    transition: width 0.4s cubic-bezier(0.22, 1, 0.36, 1);
+  }
+  .fill-busy {
+    background: var(--accent);
+  }
+  .fill-full {
+    background: var(--ok);
+  }
+
+  .steps {
+    margin-top: 0.75rem;
+    padding-left: 1.15rem;
+    list-style: decimal;
+    font-size: 0.85rem;
+    line-height: 1.65;
+    color: var(--tx-2);
+  }
+  .steps li::marker {
+    color: var(--accent);
+    font-weight: 600;
+  }
+
+  /* --- auth ------------------------------------------------------------- */
+  .auth-page {
+    display: flex;
+    flex: 1 1 0%;
+    align-items: center;
+    justify-content: center;
+    padding: 5rem 1.5rem 6rem;
+  }
+  .auth-card {
+    display: flex;
+    flex-direction: column;
+    gap: 1rem;
+    width: 100%;
+    max-width: 23rem;
+    padding: 2rem 1.75rem;
+  }
+  .auth-title {
+    text-align: center;
+    font-size: 1.25rem;
+    font-weight: 700;
+    letter-spacing: -0.02em;
+    color: var(--tx);
+  }
+  .divider {
+    display: flex;
+    align-items: center;
+    gap: 0.75rem;
+    color: var(--tx-3);
+    font-size: 0.7rem;
+  }
+  .divider::before,
+  .divider::after {
+    content: "";
+    flex: 1 1 0%;
+    height: 1px;
+    background: var(--line-2);
+  }
+
+  /* --- floating chrome -------------------------------------------------- */
+  .home-pill {
+    position: fixed;
+    top: 1rem;
+    left: 1rem;
+    z-index: 50;
+    display: inline-flex;
+    align-items: center;
+    gap: 0.45rem;
+    padding: 0.5rem 0.95rem 0.5rem 0.75rem;
+    border-radius: 999px;
+    border: 1px solid var(--line-2);
+    background: rgba(16, 16, 18, 0.72);
+    backdrop-filter: blur(10px);
+    color: var(--tx-2);
+    font-size: 0.78rem;
+    font-weight: 550;
+    transition: color 0.18s ease, border-color 0.18s ease, background 0.18s ease;
+  }
+  .home-pill:hover {
+    color: var(--tx);
+    border-color: var(--accent-line);
+    background: rgba(28, 20, 16, 0.85);
+  }
+  .home-pill-icon {
+    width: 0.95rem;
+    height: 0.95rem;
+    color: var(--accent);
+    transition: transform 0.2s ease;
+  }
+  .home-pill:hover .home-pill-icon {
+    transform: translateY(-1px);
+  }
+
+  .lang-dock {
+    position: fixed;
+    right: 1rem;
+    bottom: 1rem;
+    z-index: 50;
+    display: flex;
+    gap: 0.15rem;
+    padding: 0.25rem;
+    border-radius: 999px;
+    border: 1px solid var(--line-2);
+    background: rgba(16, 16, 18, 0.72);
+    backdrop-filter: blur(10px);
+  }
+  .lang-btn {
+    border: 0;
+    border-radius: 999px;
+    background: transparent;
+    padding: 0.35rem 0.7rem;
+    font-size: 0.7rem;
+    font-weight: 600;
+    color: var(--tx-3);
+    cursor: pointer;
+    transition: color 0.16s ease, background 0.16s ease;
+  }
+  .lang-btn:hover {
+    color: var(--tx);
+    background: rgba(255, 255, 255, 0.06);
+  }
+  .lang-btn[aria-pressed="true"] {
+    background: linear-gradient(180deg, var(--accent-2), var(--accent));
+    color: #fff;
+  }
+}
+
+/* --- motion ------------------------------------------------------------- */
+@keyframes rise {
+  from {
+    opacity: 0;
+    transform: translateY(10px);
+  }
+  to {
+    opacity: 1;
+    transform: none;
+  }
+}
+
+@keyframes pulse {
+  0%,
+  100% {
+    opacity: 1;
+    transform: scale(1);
+  }
+  50% {
+    opacity: 0.45;
+    transform: scale(0.82);
+  }
+}
+
+@keyframes spin {
+  to {
+    transform: rotate(360deg);
+  }
+}
+
+@keyframes swap-in {
+  from {
+    opacity: 0;
+    transform: translateY(0.35em);
+    filter: blur(4px);
+  }
+  to {
+    opacity: 1;
+    transform: none;
+    filter: blur(0);
+  }
+}
+
+/* Mount-in. Stagger by setting --d inline on successive elements. */
+.rise {
+  animation: rise 0.5s cubic-bezier(0.22, 1, 0.36, 1) backwards;
+  animation-delay: var(--d, 0ms);
+}
+
+.swap {
+  display: inline-block;
+  animation: swap-in 0.4s cubic-bezier(0.22, 1, 0.36, 1);
+}
+
+@media (prefers-reduced-motion: reduce) {
+  *,
+  *::before,
+  *::after {
+    animation-duration: 0.01ms !important;
+    animation-iteration-count: 1 !important;
+    transition-duration: 0.01ms !important;
+  }
 }

@@ -1,6 +1,7 @@
 import Link from "next/link";
 import { auth, signOut } from "@/auth";
 import { getDictionary } from "@/lib/i18n/serverLocale";
+import { Logo } from "./Logo";
 import { HomeHero } from "./HomeHero";
 import { HomeFeatures } from "./HomeFeatures";
 
@@ -9,15 +10,13 @@ export default async function Home() {
   const { dict } = await getDictionary();
 
   return (
-    <div className="flex flex-1 flex-col bg-black font-sans">
-      <nav className="flex flex-wrap items-center justify-between gap-3 border-b border-white/10 px-6 py-4">
-        <span className="text-sm font-bold uppercase tracking-widest text-white">
-          Rust <span className="text-orange-500">Tracker</span>
-        </span>
-        <div className="flex flex-wrap items-center gap-4 text-sm">
+    <div className="flex flex-1 flex-col">
+      <header className="site-header">
+        <Logo />
+        <nav className="flex items-center gap-2">
           {session?.user ? (
             <>
-              <Link href="/account" className="text-zinc-300 transition-colors hover:text-white">
+              <Link href="/account" className="btn btn-sm">
                 {dict.nav.account}
               </Link>
               <form
@@ -26,32 +25,33 @@ export default async function Home() {
                   await signOut({ redirectTo: "/" });
                 }}
               >
-                <button
-                  type="submit"
-                  className="rounded-full border border-white/15 px-4 py-1.5 text-zinc-300 transition-colors hover:border-white/30 hover:text-white"
-                >
+                <button type="submit" className="btn btn-sm">
                   {dict.nav.logout}
                 </button>
               </form>
             </>
           ) : (
             <>
-              <Link href="/login" className="text-zinc-300 transition-colors hover:text-white">
+              <Link href="/login" className="btn btn-sm">
                 {dict.nav.login}
               </Link>
-              <Link
-                href="/register"
-                className="rounded-full bg-white px-4 py-1.5 font-medium text-black transition-colors hover:bg-zinc-200"
-              >
+              <Link href="/register" className="btn btn-sm btn-primary">
                 {dict.nav.register}
               </Link>
             </>
           )}
-        </div>
-      </nav>
+        </nav>
+      </header>
 
       <HomeHero />
       <HomeFeatures />
+
+      <footer className="site-footer">
+        <span className="faint text-xs">Rust Tracker · {new Date().getFullYear()}</span>
+        <span className="faint text-xs">
+          Дані: Steam Web API · RustMaps · не афілійовано з Facepunch Studios
+        </span>
+      </footer>
     </div>
   );
 }

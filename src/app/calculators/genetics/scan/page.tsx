@@ -370,21 +370,19 @@ export default function GeneticsScanPage() {
   }, [cropGenomes]);
 
   return (
-    <div className="flex flex-1 flex-col items-center bg-zinc-50 px-6 py-16 font-sans dark:bg-black">
-      <div className="w-full max-w-3xl">
-        <Link href="/calculators/genetics" className="text-sm text-zinc-600 dark:text-zinc-400">
-          ← Назад до генетики
+    <div className="page">
+      <div className="shell-wide">
+        <Link href="/calculators/genetics" className="back-link">
+          <span className="back-arrow">←</span> Назад до генетики
         </Link>
-        <h1 className="mt-4 text-2xl font-semibold text-black dark:text-zinc-50">
-          Сканування клонів з екрана
-        </h1>
+        <h1 className="page-title rise">Сканування клонів з екрана</h1>
 
-        <div className="mt-2 rounded-xl border border-yellow-600/30 bg-yellow-50 p-3 text-sm text-yellow-800 dark:border-yellow-500/30 dark:bg-yellow-950 dark:text-yellow-200">
+        <div className="note note-warn mt-4 rise" style={{ ["--d" as string]: "60ms" }}>
           Обов&apos;язкова умова: у налаштуваннях Rust (Settings → User Interface) виставити{" "}
           <strong>User Interface Scale = 1 (максимум)</strong> і мову інтерфейсу — English.
         </div>
 
-        <ol className="mt-4 list-decimal pl-5 text-sm text-zinc-600 dark:text-zinc-400">
+        <ol className="steps mt-4 rise" style={{ ["--d" as string]: "110ms" }}>
           <li>Захопи екран/вікно з грою — виділяти нічого не потрібно.</li>
           <li>Натисни «Почати сканування» і наведи курсор на будь-який клон, щоб з&apos;явилась підказка з геном.</li>
           <li>
@@ -395,24 +393,20 @@ export default function GeneticsScanPage() {
           <li>Найкращі варіанти схрещування під ціль {DEFAULT_TARGET_GENOME} показуються автоматично нижче.</li>
         </ol>
 
-        <div className="mt-6 flex flex-col gap-4 rounded-2xl border border-black/[.08] bg-white p-6 dark:border-white/[.145] dark:bg-black">
-          {errorMessage && <p className="text-sm text-red-600 dark:text-red-400">{errorMessage}</p>}
+        <div className="panel mt-6 flex flex-col gap-4 rise" style={{ ["--d" as string]: "160ms" }}>
+          {errorMessage && <p className="note note-bad">{errorMessage}</p>}
           {!isLoggedIn && (
-            <p className="text-sm text-zinc-600 dark:text-zinc-400">
-              <Link href="/login" className="font-medium text-black dark:text-zinc-50">
+            <p className="text-sm muted">
+              <Link href="/login" className="link-accent">
                 Увійди
               </Link>{" "}
               щоб розпізнані клони зберігались у базу.
             </p>
           )}
 
-          <label className="flex w-fit flex-col gap-1 text-sm text-zinc-700 dark:text-zinc-300">
+          <label className="field w-fit min-w-[12rem]">
             Культура
-            <select
-              value={crop}
-              onChange={(e) => setCrop(e.target.value as Crop)}
-              className="rounded-lg border border-black/[.08] px-3 py-2 text-black dark:border-white/[.145] dark:bg-zinc-900 dark:text-zinc-50"
-            >
+            <select value={crop} onChange={(e) => setCrop(e.target.value as Crop)} className="select">
               {CROPS.map((c) => (
                 <option key={c} value={c}>
                   {CROP_LABELS[c]}
@@ -422,62 +416,35 @@ export default function GeneticsScanPage() {
           </label>
 
           {!isCapturing && (
-            <button
-              type="button"
-              onClick={handleStartCapture}
-              className="h-11 self-start rounded-full bg-foreground px-6 text-sm font-medium text-background transition-colors hover:bg-[#383838] dark:hover:bg-[#ccc]"
-            >
+            <button type="button" onClick={handleStartCapture} className="btn btn-primary self-start">
               Захопити екран
             </button>
           )}
 
           {/* Always mounted (just hidden pre-capture) so videoRef exists before getDisplayMedia resolves. */}
           <div className={isCapturing ? "flex flex-col gap-4" : "hidden"}>
-            <video
-              ref={videoRef}
-              autoPlay
-              muted
-              playsInline
-              className="block w-full select-none rounded-lg border border-black/[.08] dark:border-white/[.145]"
-            />
+            <video ref={videoRef} autoPlay muted playsInline className="scan-video" />
 
             <div className="flex flex-wrap items-center gap-3">
               {!isScanning ? (
-                <button
-                  type="button"
-                  onClick={handleStartScanning}
-                  className="h-11 rounded-full bg-foreground px-6 text-sm font-medium text-background transition-colors hover:bg-[#383838] dark:hover:bg-[#ccc]"
-                >
+                <button type="button" onClick={handleStartScanning} className="btn btn-primary">
                   Почати сканування
                 </button>
               ) : (
-                <button
-                  type="button"
-                  onClick={handleStopScanning}
-                  className="h-11 rounded-full border border-solid border-black/[.08] px-6 text-sm font-medium transition-colors hover:border-transparent hover:bg-black/[.04] dark:border-white/[.145] dark:hover:bg-[#1a1a1a]"
-                >
-                  Зупинити сканування
+                <button type="button" onClick={handleStopScanning} className="btn">
+                  <span className="dot dot-live" /> Зупинити сканування
                 </button>
               )}
-              <button
-                type="button"
-                disabled={isTestingOcr}
-                onClick={handleTestOcr}
-                className="h-11 rounded-full border border-solid border-black/[.08] px-6 text-sm font-medium transition-colors hover:border-transparent hover:bg-black/[.04] disabled:opacity-50 dark:border-white/[.145] dark:hover:bg-[#1a1a1a]"
-              >
+              <button type="button" disabled={isTestingOcr} onClick={handleTestOcr} className="btn">
                 {isTestingOcr ? "Перевіряю..." : "Тест OCR зараз"}
               </button>
-              <button
-                type="button"
-                onClick={stopEverything}
-                className="text-sm text-red-600 hover:underline dark:text-red-400"
-              >
+              <button type="button" onClick={stopEverything} className="link-danger">
                 Зупинити захоплення екрана
               </button>
             </div>
 
             {(isScanning || lastOcrText) && (
-              <p className="font-mono text-xs text-zinc-500 dark:text-zinc-500">
+              <p className="mono text-xs faint break-all">
                 Останній OCR-текст: &quot;{lastOcrText || "…"}&quot;
               </p>
             )}
@@ -485,19 +452,13 @@ export default function GeneticsScanPage() {
         </div>
 
         {recentlyAdded.length > 0 && (
-          <div className="mt-6 flex flex-col gap-2 rounded-2xl border border-black/[.08] bg-white p-6 dark:border-white/[.145] dark:bg-black">
-            <h2 className="text-lg font-medium text-black dark:text-zinc-50">
-              Щойно додано ({recentlyAdded.length})
-            </h2>
+          <div className="panel mt-4 flex flex-col gap-2 rise">
+            <h2 className="section-title">Щойно додано ({recentlyAdded.length})</h2>
             {recentlyAdded.map((g) => (
-              <div key={g.id} className="flex items-center gap-3 rounded-xl bg-zinc-100 p-3 text-sm dark:bg-zinc-900">
-                <span className="font-mono text-black dark:text-zinc-50">{g.genes}</span>
-                <span className="text-xs text-zinc-500">{greenGeneCount(parseGenome(g.genes))}/6 зелених</span>
-                <button
-                  type="button"
-                  onClick={() => handleDeleteSaved(g.id)}
-                  className="ml-auto text-xs text-red-600 hover:underline dark:text-red-400"
-                >
+              <div key={g.id} className="queue-item rise">
+                <span className="mono tracking-widest text-sm">{g.genes}</span>
+                <span className="mono text-xs faint">{greenGeneCount(parseGenome(g.genes))}/6</span>
+                <button type="button" onClick={() => handleDeleteSaved(g.id)} className="link-danger ml-auto">
                   Видалити (помилка)
                 </button>
               </div>
@@ -505,50 +466,61 @@ export default function GeneticsScanPage() {
           </div>
         )}
 
-        <div className="mt-6 flex flex-col gap-3 rounded-2xl border border-black/[.08] bg-white p-6 dark:border-white/[.145] dark:bg-black">
-          <h2 className="text-lg font-medium text-black dark:text-zinc-50">
-            Найкраще схрещування під ціль {DEFAULT_TARGET_GENOME}
+        <div className="panel mt-4 flex flex-col gap-3 rise" style={{ ["--d" as string]: "220ms" }}>
+          <h2 className="section-title">
+            Найкраще схрещування під ціль <span className="mono text-[var(--accent)]">{DEFAULT_TARGET_GENOME}</span>
           </h2>
-          <p className="text-sm text-zinc-600 dark:text-zinc-400">
+          <p className="text-sm muted">
             Рахується автоматично з усіх збережених клонів обраної культури ({CROP_LABELS[crop]}).
           </p>
 
           {!isLoggedIn ? (
-            <p className="text-sm text-zinc-500 dark:text-zinc-500">Увійди, щоб бачити цей розрахунок.</p>
+            <p className="text-sm faint">Увійди, щоб бачити цей розрахунок.</p>
           ) : cropGenomes.length === 0 ? (
-            <p className="text-sm text-zinc-500 dark:text-zinc-500">
-              Ще немає збережених клонів цієї культури.
-            </p>
+            <p className="text-sm faint">Ще немає збережених клонів цієї культури.</p>
           ) : arrangement ? (
-            <div className="rounded-xl bg-zinc-100 p-4 text-sm dark:bg-zinc-900">
-              <p className="text-xs text-zinc-500">Центр</p>
-              <p className="font-mono text-black dark:text-zinc-50">{arrangement.centerGenes}</p>
-              <p className="mt-2 text-xs text-zinc-500">Сусіди ({arrangement.neighborGenesList.length}/8)</p>
-              {arrangement.neighborGenesList.length === 0 ? (
-                <p className="text-zinc-600 dark:text-zinc-400">Не потрібні.</p>
-              ) : (
-                <ul className="font-mono text-black dark:text-zinc-50">
-                  {arrangement.neighborGenesList.map((g, i) => (
-                    <li key={i}>{g}</li>
-                  ))}
-                </ul>
-              )}
-              <p className="mt-2 text-xs text-zinc-500">Найімовірніший результат</p>
-              <p className="font-mono text-black dark:text-zinc-50">
-                {arrangement.likelyGenome}{" "}
-                <span className="text-xs text-zinc-500">({arrangement.expectedMatches.toFixed(1)}/6 співпадінь)</span>
-              </p>
-              <p className="mt-2 font-medium text-black dark:text-zinc-50">
-                Шанс отримати ідеальний {DEFAULT_TARGET_GENOME}: {(arrangement.chance * 100).toFixed(1)}%
-              </p>
+            <div className="inset flex flex-col gap-3 text-sm">
+              <div>
+                <p className="label">Центр</p>
+                <p className="mono mt-1 tracking-widest">{arrangement.centerGenes}</p>
+              </div>
+              <div>
+                <p className="label">Сусіди ({arrangement.neighborGenesList.length}/8)</p>
+                {arrangement.neighborGenesList.length === 0 ? (
+                  <p className="mt-1 muted">Не потрібні.</p>
+                ) : (
+                  <ul className="mono mt-1 tracking-widest">
+                    {arrangement.neighborGenesList.map((g, i) => (
+                      <li key={i}>{g}</li>
+                    ))}
+                  </ul>
+                )}
+              </div>
+              <div>
+                <p className="label">Найімовірніший результат</p>
+                <p className="mono mt-1 tracking-widest">
+                  {arrangement.likelyGenome}{" "}
+                  <span className="text-xs faint tracking-normal">
+                    ({arrangement.expectedMatches.toFixed(1)}/6)
+                  </span>
+                </p>
+              </div>
+
+              <div className="cost">
+                <span className="label">
+                  Шанс на <span className="mono">{DEFAULT_TARGET_GENOME}</span>
+                </span>
+                <span className="cost-value mono">{(arrangement.chance * 100).toFixed(1)}%</span>
+              </div>
+
               {arrangement.chance > 0 && arrangement.chance < 1 && (
-                <p className="text-zinc-600 dark:text-zinc-400">
+                <p className="muted">
                   ~{arrangement.expectedAttempts} {arrangement.expectedAttempts === 1 ? "спроба" : "спроб"} в
                   середньому.
                 </p>
               )}
               {arrangement.chance === 0 && arrangement.expectedMatches < 6 && (
-                <p className="text-zinc-600 dark:text-zinc-400">
+                <p className="muted leading-relaxed">
                   Ідеальний збіг наразі неможливий — з наявних клонів це найкраще, чого можна
                   досягти. Дозбирай клони, ближчі до {DEFAULT_TARGET_GENOME}, щоб покращити результат.
                 </p>
