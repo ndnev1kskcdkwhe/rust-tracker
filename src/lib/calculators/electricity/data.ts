@@ -7,6 +7,12 @@
  * - rustrician.io/wiki — the community electrical handbook, for the mechanics that item
  *   pages state too tersely (battery efficiency, root-combiner depth limit).
  *
+ * Added 2026-08-01 from `rust-grid.html`, a circuit sandbox built in a separate session:
+ * only the structural facts it carries — which components pass power through, which emit a
+ * fixed signal instead, and the container/adaptor rule. Its consumption numbers were left
+ * alone: where they disagree with the wiki figures above (neon signs, Tesla Coil, Igniter)
+ * its own handoff marks them as unverified guesses from rustrician.
+ *
  * Numbers here are balance values and Facepunch changes them in patches. Anything derived
  * from them belongs in pure functions with tests, not inlined in UI, so a re-check is a
  * one-file edit.
@@ -95,6 +101,15 @@ export const BATTERIES: Battery[] = [
   { id: "large", name: "Велика батарея", capacityRWm: 24000, maxOutput: 100 },
 ];
 
+/*
+ * No max *input* field above, on purpose. The wiki pages list Max Power Output only, so
+ * `power.ts` charges a battery at whatever you feed it.
+ *
+ * rust-grid claims a ceiling of 40 / 200 / 400 rW and explains it as "four times the output",
+ * but 15 × 4 is 60, not 40 — the rule and its own numbers disagree and neither is sourced. If
+ * a real ceiling turns up in game it becomes a field on Battery.
+ */
+
 // --- distribution ----------------------------------------------------------
 
 /**
@@ -114,12 +129,30 @@ export const SPLITTER_OUTPUTS = 3;
 export const ELECTRICAL_BRANCH = {
   /** Branch Out takes the amount you set on the component; Power Out keeps the rest. */
   note: "Гілка забирає задану кількість у Branch Out, решта йде далі через Power Out.",
+  /** branchOut = min(input, amount), powerOut = input − branchOut. Takes nothing for itself. */
+  split(input: RW, amount: RW): { branchOut: RW; powerOut: RW } {
+    const branchOut = Math.min(input, Math.max(0, amount));
+    return { branchOut, powerOut: input - branchOut };
+  },
 } as const;
 
 export const ROOT_COMBINER = {
   inputs: 2,
   note: "Обʼєднує два кореневі джерела (батареї/панелі) в одну лінію. Рахується в ліміт глибини 16.",
+  /** Straight sum of its two inputs. */
+  combine(a: RW, b: RW): RW {
+    return a + b;
+  },
 } as const;
+
+/**
+ * A component that passes power through hands the next one `input − its own consumption`.
+ * Chaining consumers this way needs no splitter at all, which is often cheaper than a tree —
+ * stage 2 should try it before reaching for distribution parts.
+ */
+export function passthroughOutput(input: RW, consumption: RW): RW {
+  return Math.max(0, input - consumption);
+}
 
 // --- consumers -------------------------------------------------------------
 
@@ -131,11 +164,27 @@ export type ConsumerCategory =
   | "sensor"
   | "industrial";
 
+/**
+ * What leaves a consumer's power output — the fact stage 2 needs to decide whether a run of
+ * consumers can be daisy-chained or whether every one of them needs its own splitter leg.
+ *
+ * - absent — a dead end. The item eats what it gets and has no power output at all.
+ * - "passthrough" — Power Out carries the input minus this item's own consumption, always, so
+ *   the next consumer hangs straight off it and costs no distribution parts.
+ * - "gated" — the same leftover, but only while the item is triggered. A furnace behind a
+ *   laser detector runs only when someone walks through the beam, so a generated circuit must
+ *   never treat this as a permanent line.
+ * - "signal" — the output is a small fixed value the item generates for logic (1 rW and the
+ *   like), not the leftover. Never route a load from it; it will not carry one.
+ */
+export type PowerOut = "passthrough" | "gated" | "signal";
+
 export interface Consumer {
   id: string;
   name: string;
   consumption: RW;
   category: ConsumerCategory;
+  powerOut?: PowerOut;
   note?: string;
 }
 
@@ -143,8 +192,20 @@ export const CONSUMERS: Consumer[] = [
   // production
   { id: "electricFurnace", name: "Електропічка", consumption: 3, category: "production" },
   { id: "industrialCrafter", name: "Industrial Crafter", consumption: 1, category: "industrial" },
-  { id: "industrialConveyor", name: "Industrial Conveyor", consumption: 1, category: "industrial" },
-  { id: "storageAdaptor", name: "Storage Adaptor", consumption: 1, category: "industrial" },
+  {
+    id: "industrialConveyor",
+    name: "Industrial Conveyor",
+    consumption: 1,
+    category: "industrial",
+    powerOut: "passthrough",
+  },
+  {
+    id: "storageAdaptor",
+    name: "Storage Adaptor",
+    consumption: 1,
+    category: "industrial",
+    note: "СПІРНЕ: rust-grid дає адаптеру взагалі не потребувати живлення, без порту живлення. Жодне з двох не звірене — перевірити в грі.",
+  },
   { id: "hopper", name: "Hopper", consumption: 8, category: "industrial" },
   { id: "poweredWaterPurifier", name: "Очищувач води", consumption: 5, category: "utility" },
   { id: "waterPump", name: "Водяна помпа", consumption: 5, category: "utility" },
@@ -155,12 +216,26 @@ export const CONSUMERS: Consumer[] = [
     name: "Автотурель",
     consumption: 10,
     category: "defense",
+    powerOut: "signal",
     note: "10 rW щоб працювати; 11 — якщо задіяні виходи Has Target / Low Ammo / No Ammo (по 1 rW кожен).",
   },
-  { id: "samSite", name: "SAM Site", consumption: 25, category: "defense" },
-  { id: "teslaCoil", name: "Котушка Тесла", consumption: 25, category: "defense", note: "Більше живлення — більша шкода." },
-  { id: "searchLight", name: "Прожектор (Search Light)", consumption: 10, category: "defense" },
-  { id: "reactiveTarget", name: "Мішень", consumption: 1, category: "utility" },
+  {
+    id: "samSite",
+    name: "SAM Site",
+    consumption: 25,
+    category: "defense",
+    powerOut: "passthrough",
+    note: "Крім Passthrough має сигнальні виходи Has Target / Low Ammo.",
+  },
+  { id: "teslaCoil", name: "Котушка Тесла", consumption: 25, category: "defense", note: "Більше живлення — більша шкода. rust-grid дає стелю 35 rW (1 hp/с за кожен rW), але не звірено." },
+  {
+    id: "searchLight",
+    name: "Прожектор (Search Light)",
+    consumption: 10,
+    category: "defense",
+    powerOut: "passthrough",
+  },
+  { id: "reactiveTarget", name: "Мішень", consumption: 1, category: "utility", powerOut: "signal" },
 
   // light
   { id: "simpleLight", name: "Проста лампа", consumption: 1, category: "light" },
@@ -181,29 +256,92 @@ export const CONSUMERS: Consumer[] = [
   { id: "largeAnimatedNeonSign", name: "Велика анімована вивіска", consumption: 7, category: "light" },
   { id: "flasherLight", name: "Блималка", consumption: 1, category: "light" },
   { id: "sirenLight", name: "Сирена-мигалка", consumption: 1, category: "light" },
+  { id: "strobeLight", name: "Strobe Light", consumption: 1, category: "light" },
 
   // utility
-  { id: "fridge", name: "Холодильник", consumption: 5, category: "utility" },
+  {
+    id: "fridge",
+    name: "Холодильник",
+    consumption: 5,
+    category: "utility",
+    note: "СПІРНЕ: rust-grid тримає холодильник за пасивний контейнер без живлення. Перевірити в грі.",
+  },
   { id: "miniFridge", name: "Міні-холодильник", consumption: 2, category: "utility" },
-  { id: "electricHeater", name: "Обігрівач", consumption: 3, category: "utility" },
+  { id: "electricHeater", name: "Обігрівач", consumption: 3, category: "utility", powerOut: "passthrough" },
   { id: "igniter", name: "Запальник", consumption: 2, category: "utility" },
-  { id: "doorController", name: "Контролер дверей", consumption: 1, category: "utility" },
-  { id: "elevator", name: "Ліфт", consumption: 5, category: "utility" },
+  {
+    id: "doorController",
+    name: "Контролер дверей",
+    consumption: 1,
+    category: "utility",
+    powerOut: "passthrough",
+    note: "Passthrough узятий з rust-grid і там не звірений.",
+  },
+  {
+    id: "elevator",
+    name: "Ліфт",
+    consumption: 5,
+    category: "utility",
+    note: "5 rW на кабіну; кнопка виклику на поверсі — ще 1 rW окремо.",
+  },
   { id: "modularCarLift", name: "Підйомник для авто", consumption: 5, category: "utility" },
   { id: "computerStation", name: "Компʼютерна станція", consumption: 5, category: "utility" },
   { id: "ptzCctvCamera", name: "PTZ камера", consumption: 3, category: "utility" },
+  { id: "cctvCamera", name: "CCTV камера", consumption: 3, category: "utility" },
+  {
+    id: "fogger",
+    name: "Fogger-3000",
+    consumption: 1,
+    category: "utility",
+    note: "Сам струму не тягне — 1 rW іде на кожен задіяний вхід (Turn On / Toggle / Turn Off). Не звірено.",
+  },
+  {
+    id: "snowMachine",
+    name: "Snow Machine",
+    consumption: 1,
+    category: "utility",
+    note: "Як Fogger: 1 rW за кожен задіяний керуючий вхід. Не звірено.",
+  },
   { id: "audioAlarm", name: "Звукова сигналізація", consumption: 1, category: "utility" },
   { id: "smartAlarm", name: "Smart Alarm", consumption: 1, category: "utility" },
   { id: "digitalClock", name: "Цифровий годинник", consumption: 1, category: "utility" },
   { id: "cableTunnel", name: "Кабельний тунель", consumption: 1, category: "utility", note: "4 незалежні канали крізь стіну." },
 
   // sensors
-  { id: "hbhfSensor", name: "HBHF-сенсор", consumption: 1, category: "sensor" },
-  { id: "laserDetector", name: "Лазерний детектор", consumption: 1, category: "sensor" },
+  {
+    id: "hbhfSensor",
+    name: "HBHF-сенсор",
+    consumption: 1,
+    category: "sensor",
+    powerOut: "signal",
+    note: "Радіус 10 м. На виході — 1 rW за кожну виявлену людину, а не вхідна потужність.",
+  },
+  {
+    id: "laserDetector",
+    name: "Лазерний детектор",
+    consumption: 1,
+    category: "sensor",
+    powerOut: "gated",
+    note: "Промінь до 4.5 м. Віддає далі лише поки спрацював.",
+  },
   { id: "seismicSensor", name: "Сейсмо-сенсор", consumption: 1, category: "sensor" },
-  { id: "storageMonitor", name: "Storage Monitor", consumption: 1, category: "sensor" },
+  {
+    id: "storageMonitor",
+    name: "Storage Monitor",
+    consumption: 1,
+    category: "sensor",
+    powerOut: "signal",
+    note: "Видає рівно 1 rW, а не вхідну потужність.",
+  },
   { id: "rfBroadcaster", name: "RF-передавач", consumption: 1, category: "sensor" },
-  { id: "rfReceiver", name: "RF-приймач", consumption: 1, category: "sensor" },
+  {
+    id: "rfReceiver",
+    name: "RF-приймач",
+    consumption: 1,
+    category: "sensor",
+    powerOut: "gated",
+    note: "Віддає живлення лише поки на його частоті йде передача. Не звірено.",
+  },
 ];
 
 /**
@@ -232,3 +370,53 @@ export const PASSIVE_COMPONENTS = [
   { id: "fluidSplitter", name: "Fluid Splitter" },
   { id: "fluidCombiner", name: "Fluid Combiner" },
 ] as const;
+
+/**
+ * Logic gates pass the larger of their two inputs when they are open, and take nothing for
+ * themselves — so a gate in the middle of a run costs no power, only depth.
+ *
+ * AND opens on both inputs live, OR on either, XOR on exactly one. Blocker is the inverse:
+ * live Block Passthrough closes it. AND/OR are confirmed; XOR and Blocker come from the
+ * rust-grid sandbox and are not.
+ */
+export const LOGIC_GATES = {
+  and: (a: RW, b: RW): RW => (a > 0 && b > 0 ? Math.max(a, b) : 0),
+  or: (a: RW, b: RW): RW => Math.max(a, b),
+  xor: (a: RW, b: RW): RW => (a > 0 !== b > 0 ? Math.max(a, b) : 0),
+  blocker: (input: RW, block: RW): RW => (block > 0 ? 0 : input),
+} as const;
+
+// --- industrial pipes (stage 5) --------------------------------------------
+
+/**
+ * Containers an Industrial Conveyor can pull from or push into. They need no power of their
+ * own; the cost is the adaptor rule below.
+ *
+ * Kept as a plain id/name list because stage 5 has not researched pipe mechanics yet (transfer
+ * rates, filters, connection limits) — this is only enough to name the endpoints.
+ */
+export const PIPE_CONTAINERS = [
+  { id: "boxLarge", name: "Large Wood Box" },
+  { id: "boxSmall", name: "Wood Storage Box" },
+  { id: "furnace", name: "Furnace" },
+  { id: "furnaceLarge", name: "Large Furnace" },
+  { id: "refinery", name: "Small Oil Refinery" },
+  { id: "recycler", name: "Recycler" },
+  { id: "mixingTable", name: "Mixing Table" },
+  { id: "vendingMachine", name: "Vending Machine" },
+  { id: "toolCupboard", name: "Tool Cupboard" },
+  { id: "repairBench", name: "Repair Bench" },
+  { id: "researchTable", name: "Research Table" },
+  { id: "dropBox", name: "Drop Box" },
+  { id: "composter", name: "Composter" },
+  { id: "workbench", name: "Workbench" },
+] as const;
+
+export const PIPE_RULES = {
+  /**
+   * Every pipe attached to a container costs its own Storage Adaptor — two pipes into one box
+   * means two adaptors. A parts list that counts pipes but not adaptors is wrong.
+   */
+  adaptorsPerConnection: 1,
+  note: "Кожне під'єднання труби до контейнера потребує окремого Storage Adaptor. Два конвеєри напряму один в одного не з'єднуються.",
+} as const;
