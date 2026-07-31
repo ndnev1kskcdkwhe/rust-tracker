@@ -4,6 +4,7 @@ import { auth } from "@/auth";
 import { getPlayerProfile } from "@/lib/players/getPlayerProfile";
 import { recordPlayerView } from "@/lib/players/history";
 import { countryCodeToFlagEmoji } from "@/lib/players/countryFlag";
+import { buildExternalPlayerLinks } from "@/lib/players/externalLinks";
 import { CopyableSteamId, ShareProfileButton } from "./ProfileActions";
 
 function StatCard({ label, value, hint }: { label: string; value: React.ReactNode; hint?: string }) {
@@ -141,10 +142,28 @@ export default async function PlayerProfilePage({
               </div>
 
               <div className="panel rise" style={{ ["--d" as string]: "200ms" }}>
-                <p className="label">Історія імен, сесії, останні сервери, K/D</p>
-                {result.profile.battlemetrics.available ? null : (
-                  <p className="note note-warn mt-3">{result.profile.battlemetrics.reason}</p>
-                )}
+                <p className="label">Статистика на інших сайтах</p>
+                <p className="mt-2 text-sm muted leading-relaxed">
+                  Сесії, історія імен і K/D ми поки не показуємо в себе — API BattleMetrics
+                  доступний лише за платною підпискою. Ось прямі посилання, де ці дані є.
+                </p>
+                <div className="mt-4 flex flex-col gap-2">
+                  {buildExternalPlayerLinks(result.profile.steamId).map((link) => (
+                    <a
+                      key={link.id}
+                      href={link.href}
+                      target="_blank"
+                      rel="noopener noreferrer"
+                      className="ext-link"
+                    >
+                      <span className="flex min-w-0 flex-col">
+                        <span className="text-sm font-semibold">{link.label}</span>
+                        <span className="text-xs faint">{link.hint}</span>
+                      </span>
+                      <span className="go shrink-0">↗</span>
+                    </a>
+                  ))}
+                </div>
               </div>
 
               <p className="text-xs faint">
