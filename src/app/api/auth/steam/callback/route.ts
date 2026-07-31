@@ -3,11 +3,10 @@ import { encode } from "next-auth/jwt";
 import { auth } from "@/auth";
 import { verifySteamCallback } from "@/lib/auth/steamOpenId";
 import { getBaseUrl } from "@/lib/auth/baseUrl";
+import { sessionCookieName } from "@/lib/auth/sessionCookie";
 import { getPlayerSummary } from "@/lib/external/steam";
 import { steamPlaceholderEmail } from "@/lib/account/placeholderEmail";
 import { prisma } from "@/lib/prisma";
-
-const SESSION_COOKIE_NAME = "authjs.session-token";
 
 export async function GET(request: Request) {
   const url = new URL(request.url);
@@ -69,9 +68,13 @@ export async function GET(request: Request) {
     throw new Error("AUTH_SECRET or NEXTAUTH_SECRET must be set");
   }
 
+  const isSecure = baseUrl.startsWith("https://");
+  const cookieName = sessionCookieName(isSecure);
+
   const sessionToken = await encode({
     secret,
-    salt: SESSION_COOKIE_NAME,
+    // Must be the same string as the cookie name — Auth.js salts the JWT with it on decode.
+    salt: cookieName,
     token: {
       id: dbUser.id,
       sub: dbUser.id,
@@ -82,11 +85,11 @@ export async function GET(request: Request) {
   });
 
   const response = NextResponse.redirect(baseUrl);
-  response.cookies.set(SESSION_COOKIE_NAME, sessionToken, {
+  response.cookies.set(cookieName, sessionToken, {
     httpOnly: true,
     sameSite: "lax",
     path: "/",
-    secure: baseUrl.startsWith("https://"),
+    secure: isSecure,
   });
   return response;
 }
